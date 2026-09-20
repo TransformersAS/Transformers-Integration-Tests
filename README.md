@@ -56,6 +56,22 @@ BACKEND_BASE_URL=https://backend.example.test ./mvnw verify
 comunicarse con el backend mediante `GET /actuator/health`, esperando HTTP 200
 y `status == "UP"`. No representa cobertura funcional de un caso de uso.
 
+## E2E con Playwright
+
+Con el Marketplace levantado externamente en `http://localhost:4300`:
+
+```bash
+npm ci
+npx playwright install chromium
+npm run test:e2e
+```
+
+Para apuntar a otro frontend, configurar `FRONTEND_BASE_URL`:
+
+```bash
+FRONTEND_BASE_URL=https://frontend.example.test npm run test:e2e
+```
+
 ## Agregar un caso de uso futuro
 
 Agregar cada prueba cuando exista el primer caso de uso real del dominio y
