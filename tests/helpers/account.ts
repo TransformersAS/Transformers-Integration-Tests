@@ -37,6 +37,7 @@ export async function selectBuyerRole(page: Page) {
     await account.getByRole('button', { name: /^Cambiar rol activo,/ }).press('Space');
     await page.getByRole('radio', { name: 'COMPRADOR', exact: true }).click();
     await page.getByRole('button', { name: 'OK', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'OK', exact: true })).toBeHidden();
   }
   await expect(activeRole).toHaveText(/Rol activo:\s*COMPRADOR/);
 }
