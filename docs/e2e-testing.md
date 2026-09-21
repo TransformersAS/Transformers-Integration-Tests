@@ -120,7 +120,22 @@ captura propia de video o trace configurada.
 
 ## Integración continua
 
-La automatización de estas pruebas Playwright en GitHub Actions es el siguiente
-paso y todavía está pendiente. El CI existente ejecuta las pruebas Java/Maven;
-no ejecuta esta suite E2E. La futura ejecución con base de datos limpia deberá
-usar el perfil `local` para disponer de los datos de prueba.
+GitHub Actions ejecuta automáticamente las pruebas mediante el workflow
+[integration-tests.yml](../.github/workflows/integration-tests.yml).
+Transformers-AS está fijado a un commit concreto para reproducibilidad.
+
+En cada ejecución, el workflow levanta desde cero MySQL, backend y frontend
+mediante Docker Compose. Un override temporal activa el perfil `local` del
+backend únicamente en el entorno de CI, sin modificar el Compose de
+Transformers-AS. La base de datos limpia provisiona automáticamente la cuenta
+`demo@marketplace.local`, los roles COMPRADOR/VENDEDOR y el producto
+`Camiseta demo local`.
+
+Se ejecuta `./mvnw verify` y después los 3 Playwright E2E mediante
+`npm run test:e2e`.
+
+**Estado validado: 3/3 pruebas Playwright aprobadas en GitHub Actions.**
+
+Se guardan `target/surefire-reports/`, `playwright-report/` y `test-results/`
+como artifacts. Al finalizar, la limpieza configurada con `if: always()` elimina
+los contenedores y volúmenes del entorno de pruebas.
