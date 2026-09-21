@@ -56,7 +56,9 @@ test('cuenta cambia roles, revoca otra sesión y cierra su sesión principal', a
       const confirmation = account.getByRole('group', { name: 'Confirmar revocación' });
       await expect(confirmation.getByText(secondSessionId, { exact: true })).toBeVisible();
       await confirmation.getByRole('button', { name: 'Sí, revocar', exact: true }).click();
-      await expect(account.getByRole('status')).toHaveText('Sesión revocada.');
+      await expect(
+        account.getByRole('status').filter({ hasText: /^Sesión revocada\.$/ }),
+      ).toBeVisible();
       await expect(other).toHaveCount(0);
       await expect(current.getByText(primarySessionId, { exact: true })).toBeVisible();
 
