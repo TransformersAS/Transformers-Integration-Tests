@@ -56,6 +56,27 @@ BACKEND_BASE_URL=https://backend.example.test ./mvnw verify
 comunicarse con el backend mediante `GET /actuator/health`, esperando HTTP 200
 y `status == "UP"`. No representa cobertura funcional de un caso de uso.
 
+### Variables
+
+| Variable | Valor por defecto | Para que sirve |
+| --- | --- | --- |
+| `BACKEND_BASE_URL` | `http://localhost:8080` | Backend contra el que se ejecutan las pruebas. |
+| `E2E_EMAIL` | `demo@marketplace.local` | Cuenta del perfil local con la que se inicia sesion. |
+| `E2E_PASSWORD` | `MarketplaceDemo123!` | Contrasena de esa cuenta. |
+| `LOGISTICS_WEBHOOK_SECRET` | sin valor | El mismo con el que arranco el backend. Las pruebas de seguimiento logistico firman con el las novedades del proveedor; sin el, el webhook queda cerrado y esas pruebas fallan al arrancar. |
+
+### Casos de uso cubiertos
+
+- CU-23 preparar y despachar pedidos recibidos: `orders/SellerFulfillmentIntegrationTest`.
+- CU-24 seguimiento logistico de pedidos: `logistics/OrderTrackingIntegrationTest`.
+- CU-25 seguimiento logistico de devoluciones: `logistics/ReturnTrackingIntegrationTest`.
+- Firma y contrato del webhook logistico: `logistics/LogisticsWebhookIntegrationTest`.
+
+El detalle de cada prueba esta en [docs/pruebas-cu23-cu24-cu25.md](docs/pruebas-cu23-cu24-cu25.md).
+La configuracion compartida vive en `support/`: `MarketplaceClient` (sesion y CSRF),
+`MarketplaceScenario` (las dos sesiones y el proveedor), `Purchases`, `Returns` y
+`LogisticsProvider` (firma HMAC de las novedades).
+
 ## E2E con Playwright
 
 Con el Marketplace levantado externamente en `http://localhost:4300`:
@@ -63,7 +84,7 @@ Con el Marketplace levantado externamente en `http://localhost:4300`:
 ```bash
 npm ci
 npx playwright install chromium
-npm run test:e2e
+LOGISTICS_WEBHOOK_SECRET='el-mismo-del-backend' npm run test:e2e
 ```
 
 Para apuntar a otro frontend, configurar `FRONTEND_BASE_URL`:
@@ -71,6 +92,22 @@ Para apuntar a otro frontend, configurar `FRONTEND_BASE_URL`:
 ```bash
 FRONTEND_BASE_URL=https://frontend.example.test npm run test:e2e
 ```
+
+Las pruebas corren con un solo trabajador (`workers: 1`): el backend comparte un
+unico carrito y una unica cuenta demo entre compradores, asi que dos recorridos
+de compra a la vez se pisarian.
+
+Si el frontend se sirve en un puerto que no sea 4300, el backend tiene que
+aceptarlo como origen (`APP_CORS_ALLOWED_ORIGINS`): el proxy reenvia el `Origin`
+del navegador y el backend rechaza con 403 `Invalid CORS request` los que no
+estan en su lista.
+
+Recorridos E2E existentes:
+
+- Sofia: disponibilidad inicial, compra con solicitud de cancelacion y seguridad
+  de cuenta ([docs/pruebas-e2e-sofia.md](docs/pruebas-e2e-sofia.md)).
+- Pacho: despacho y seguimiento del envio, y seguimiento del retorno de una
+  devolucion ([docs/pruebas-cu23-cu24-cu25.md](docs/pruebas-cu23-cu24-cu25.md)).
 
 ## Agregar un caso de uso futuro
 
@@ -95,7 +132,11 @@ El workflow de GitHub Actions hace checkout de este repositorio y del repositori
 publico `TransformersAS/Transformers-AS` en una carpeta separada. Usa Java 21,
 reutiliza el `compose.yaml` del backend para construir y levantar MySQL y la
 aplicacion, espera `/actuator/health`, ejecuta `./mvnw verify` y conserva los
-reportes de Surefire como artifact. Al terminar, baja los servicios y elimina
+reportes de Surefire como artifact. El backend queda fijado a un commit concreto
+de `main`, no a una rama movil: al agregar pruebas de un caso de uso nuevo hay
+que mover ese `ref` a un commit que ya lo incluya. El job define
+`LOGISTICS_WEBHOOK_SECRET` para ese entorno efimero y lo agrega al `.env` del
+Compose, porque el webhook logistico queda cerrado sin secreto. Al terminar, baja los servicios y elimina
 los volumenes temporales. No duplica Dockerfiles ni publica imagenes.
 
 ## Cobertura

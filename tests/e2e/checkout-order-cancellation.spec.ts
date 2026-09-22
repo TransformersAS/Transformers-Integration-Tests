@@ -24,7 +24,8 @@ test('comprador compra una camiseta y solicita la cancelación de su pedido', as
     await expect(cart.getByRole('heading', { name: /vacío/i })).toBeVisible();
     await cart.getByRole('button', { name: 'Cerrar carrito' }).click();
 
-    const product = page.getByRole('article').filter({
+    // Solo el catálogo: las recomendaciones (CU-02) muestran el mismo producto en otra tarjeta.
+    const product = page.getByRole('region', { name: 'Piezas que merecen vitrina' }).getByRole('article').filter({
       has: page.getByRole('heading', { name: productName, exact: true }),
     });
     await expect(product, 'El perfil local debe provisionar Camiseta demo local').toBeVisible();
