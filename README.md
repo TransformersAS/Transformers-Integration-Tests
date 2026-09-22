@@ -112,6 +112,8 @@ Recorridos E2E existentes:
   de cuenta ([docs/pruebas-e2e-sofia.md](docs/pruebas-e2e-sofia.md)).
 - Pacho: despacho y seguimiento del envio, y seguimiento del retorno de una
   devolucion ([docs/pruebas-cu23-cu24-cu25.md](docs/pruebas-cu23-cu24-cu25.md)).
+- Alejandro: reclamacion de compra e inventario con cargas de Excel
+  ([docs/pruebas-cu13-cu15.md](docs/pruebas-cu13-cu15.md)).
 
 ## Agregar un caso de uso futuro
 

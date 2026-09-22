@@ -3,7 +3,8 @@
 Este documento describe las pruebas que Alejandro implementó en este repositorio para los dos casos de uso que
 trabajó, ambos de complejidad Alta: CU-13 «Tramitar una reclamación de compra» y CU-15 «Controlar el inventario y el
 reabastecimiento» (incluida la carga masiva con plantillas de Excel). El alcance corresponde a las tres clases Java
-que agregó y no representa la totalidad de los casos de uso del equipo.
+(REST Assured, contra el backend real) y los dos archivos Playwright (contra el frontend y el backend reales) que
+agregó, y no representa la totalidad de los casos de uso del equipo.
 
 ## 1. Objetivo
 
@@ -96,19 +97,54 @@ aquí: cualquier fila válida en todo lo demás fallaría igual por falta de una
 contrato de rechazo «todo o nada», que no depende de ningún dato sembrado y es, de hecho, la parte más importante de
 verificar externamente: que un archivo con un solo error no deje nada guardado.
 
-## 6. Ejecución local
+## 6. Recorridos E2E (`tests/e2e/claims.spec.ts` y `tests/e2e/inventory.spec.ts`)
+
+Con Playwright y Chromium, sobre el frontend y el backend reales, con las mismas cuentas y controles que usaría una
+persona: nada se fija con una llamada directa a la API.
+
+**`claims.spec.ts` (2 recorridos):**
+- El comprador abre una reclamación desde «Mis reclamaciones» (con los selectores de compra y producto), el
+  vendedor pide información desde «Reclamaciones» de su tienda, el comprador responde, el vendedor propone una
+  solución con reembolso, y el comprador la acepta. En cada paso se vuelve a consultar por la interfaz para
+  comprobar que el estado quedó persistido, no solo en la respuesta del clic.
+- Sin acuerdo, el comprador escala directamente y la reclamación queda «Escalada a soporte», sin los botones de una
+  reclamación abierta.
+
+**`inventory.spec.ts` (3 recorridos):**
+- El vendedor registra una entrada y un ajuste desde el panel «Inventario»; el ajuste sin motivo lo rechaza el
+  backend (la pantalla no lo bloquea por su cuenta), y el historial muestra los dos movimientos, el más nuevo
+  primero.
+- Un mínimo por encima del stock enciende la marca «Stock bajo» y el aviso de la lista; vuelto a 0, se apaga.
+- Las dos plantillas de Excel se descargan con su nombre de archivo, y una carga con una fila inválida (un
+  producto que no existe) rechaza el archivo completo, con el error visible en pantalla. El archivo se genera en
+  el propio navegador con `tests/helpers/xlsx.ts` (la versión TypeScript de `support/MinimalXlsx.java`) y se
+  entrega directamente al campo de archivo oculto del panel, sin diálogo del sistema operativo.
+
+**Límites conocidos (los mismos que en las pruebas Java, por la misma razón):** ningún recorrido decide una
+reclamación escalada como soporte, y ninguno prueba la creación exitosa de un producto por Excel.
+
+**Cuidado con el estado compartido:** «Camiseta demo local» es el mismo producto que usan los demás recorridos de
+este repositorio. Los localizadores de `inventory.spec.ts` filtran por *contenido* del nombre del producto (no por
+nombre exacto), porque el nombre accesible del encabezado cambia cuando la fila ya muestra «Stock bajo» (por
+efecto de otra prueba, o de una corrida anterior que no llegó a limpiar su mínimo). Si una corrida se interrumpe a
+mitad del recorrido del mínimo, puede quedar un mínimo distinto de 0 en ese producto hasta la siguiente corrida.
+
+## 7. Ejecución local
 
 ```bash
 # Primero, en el repositorio principal
 cd /ruta/Transformers-AS
 docker compose up -d --build --wait
 
-# Después, en este repositorio
+# Pruebas Java, en este repositorio
 cd /ruta/Transformers-Integration-Tests
 ./mvnw test -Dtest=ClaimIntegrationTest,SellerInventoryIntegrationTest,SellerExcelIntegrationTest
+
+# Recorridos E2E (con el frontend levantado en http://localhost:4300)
+npx playwright test tests/e2e/claims.spec.ts tests/e2e/inventory.spec.ts
 ```
 
-## 7. Alcance
+## 8. Alcance
 
 Estas pruebas cubren el contrato HTTP de CU-13 y CU-15 tal como quedó en `main` de `Transformers-AS`. No sustituyen
 las pruebas unitarias y de integración del propio backend (`ClaimTests`, `StockControlTests`, `SellerExcelTests`),
