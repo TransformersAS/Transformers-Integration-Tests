@@ -26,7 +26,9 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: TransformersAS/Transformers-AS
-          ref: main 
+
+          ref: 8c4d58129bd80f2bd10b31c49087f9d69c1fe90a
+
           path: backend-source
           persist-credentials: false
 
@@ -110,6 +112,20 @@ jobs:
             mysql --default-character-set=utf8mb4 -umarketplace_app marketplace -e \
             "INSERT INTO categories(name, active) SELECT 'Hogar', TRUE FROM DUAL \
              WHERE NOT EXISTS (SELECT 1 FROM categories WHERE name = 'Hogar');"
+
+      - name: Verify the Integration Tests and E2E fixture accounts
+        # CU-08 exige correo verificado para login, también para soporte y vecino (CU-21).
+        # Solo fixtures locales y de cu20-demo-seed.sh en la base efímera de este job.
+        run: |
+          docker compose \
+            --env-file backend-source/.env \
+            -f backend-source/compose.yaml \
+            -f "$RUNNER_TEMP/compose.e2e.yaml" \
+            exec -T mysql sh -c 'MYSQL_PWD="$MYSQL_PASSWORD" exec mysql --user="$MYSQL_USER" "$MYSQL_DATABASE"' <<'SQL'
+          UPDATE user_accounts SET email_verified_at = COALESCE(email_verified_at, CURRENT_TIMESTAMP(6))
+          WHERE email IN ('demo@marketplace.local', 'soporte.demo@example.com',
+                          'comprador.demo@example.com', 'vendedor.demo@example.com', 'vecino.demo@example.com');
+          SQL
 
       - name: Run integration tests
         env:

@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { loginAsBuyer } from '../helpers/account';
 
-test('comprador compra una camiseta y solicita la cancelación de su pedido', async ({ page }) => {
+test('CU-11: comprador compra una camiseta y cancela definitivamente su pedido', async ({ page }) => {
   test.setTimeout(90_000);
   const productName = 'Camiseta demo local';
 
@@ -85,18 +85,47 @@ test('comprador compra una camiseta y solicita la cancelación de su pedido', as
       .toBe(`${paidTotal}00`);
   });
 
-  await test.step('Solicitar y confirmar cancelación sin permitir una segunda solicitud', async () => {
-    await orders.getByRole('button', { name: 'Solicitar cancelación', exact: true }).click();
-    await expect(orders.getByText(`¿Solicitar la cancelación del pedido #${orderId}?`, { exact: false })).toBeVisible();
-    await orders.getByRole('button', { name: 'Confirmar solicitud', exact: true }).click();
-    await expect(orders.getByText('Cancelación solicitada', { exact: true })).toBeVisible();
-    await expect(orders.getByText('La cancelación de este pedido ya fue solicitada.', { exact: true })).toBeVisible();
-    await expect(orders.getByRole('button', { name: 'Solicitar cancelación', exact: true })).toHaveCount(0);
-    await expect(orders.getByRole('button', { name: 'Confirmar solicitud', exact: true })).toHaveCount(0);
-    // Volver a consultar mediante la UI para verificar persistencia del estado.
-    await orders.getByRole('button', { name: 'Volver a mis pedidos', exact: true }).click();
-    await orders.getByRole('button', { name: `Ver detalle del pedido ${orderId}`, exact: true }).click();
-    await expect(orders.getByText('Cancelación solicitada', { exact: true })).toBeVisible();
-    await expect(orders.getByRole('button', { name: 'Solicitar cancelación', exact: true })).toHaveCount(0);
+  await test.step('Cancelar directamente con motivo Otro y comprobar el reembolso', async () => {
+    await orders.getByRole('button', { name: 'Cancelar pedido', exact: true }).click();
+    const confirm = orders.getByRole('button', { name: 'Confirmar cancelación', exact: true });
+    await expect(confirm).toBeDisabled();
+    await orders.getByRole('combobox', { name: 'Motivo de cancelación' }).selectOption({ label: 'Otro' });
+    const explanation = orders.getByRole('textbox', { name: 'Explica el motivo (obligatorio)' });
+    await expect(explanation).toBeVisible();
+    await expect(confirm).toBeDisabled();
+    await explanation.fill('   ');
+    await expect(confirm).toBeDisabled();
+    await explanation.fill('Compré la talla equivocada; cancelación de prueba CU-11.');
+    await expect(confirm).toBeEnabled();
+    await expect(orders.getByText(`¿Confirmas la cancelación definitiva del pedido #${orderId}?`, { exact: true }))
+      .toBeVisible();
+    // Solo observar la respuesta de la petición que hace la UI; no sustituirla ni cancelar por API.
+    const [cancelled] = await Promise.all([
+      page.waitForResponse(r => new URL(r.url()).pathname === `/api/orders/${orderId}/cancellation`
+        && r.request().method() === 'POST'),
+      confirm.click(),
+    ]);
+    expect(cancelled.status()).toBe(200);
+    expect(await cancelled.json()).toMatchObject({
+      orderId: Number(orderId), status: 'CANCELLED', paymentStatus: 'REFUNDED', refund: { status: 'COMPLETED' },
+    });
+    await expect(orders.getByText('Cancelado', { exact: true })).toBeVisible();
+    await expect(orders.getByRole('status')).toHaveText('Pedido cancelado. Reembolso completado');
+    await expect(orders.getByRole('button', { name: 'Cancelar pedido', exact: true })).toHaveCount(0);
+    await expect(confirm).toHaveCount(0);
+  });
+
+  await test.step('Recargar y verificar la cancelación persistida', async () => {
+    await page.reload();
+    await page.getByRole('button', { name: 'Mis pedidos', exact: true }).click();
+    const [detail] = await Promise.all([
+      page.waitForResponse(r => new URL(r.url()).pathname === `/api/orders/${orderId}`
+        && r.request().method() === 'GET'),
+      orders.getByRole('button', { name: `Ver detalle del pedido ${orderId}`, exact: true }).click(),
+    ]);
+    expect(detail.status()).toBe(200);
+    expect(await detail.json()).toMatchObject({ id: Number(orderId), status: 'CANCELLED' });
+    await expect(orders.getByText('Cancelado', { exact: true })).toBeVisible();
+    await expect(orders.getByRole('button', { name: 'Cancelar pedido', exact: true })).toHaveCount(0);
   });
 });

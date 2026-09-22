@@ -13,7 +13,8 @@ class HealthIntegrationTest {
         given()
                 .baseUri(BackendConfiguration.baseUrl())
         .when()
-                .get("/actuator/health")
+                // El backend define readiness = readinessState + db; health global incluye SMTP sin configurar en CI.
+                .get("/actuator/health/readiness")
         .then()
                 .statusCode(200)
                 .body("status", equalTo("UP"));
