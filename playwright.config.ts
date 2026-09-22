@@ -4,7 +4,10 @@ const demoMode = process.env.DEMO_MODE === 'true';
 
 export default defineConfig({
   testDir: './tests/e2e',
-
+  // Un solo trabajador: el backend comparte un único carrito y una única cuenta demo entre compradores, así que dos
+  // recorridos de compra a la vez se pisarían. No es una preferencia de estilo, es un límite del sistema bajo prueba.
+  workers: 1,
+  fullyParallel: false,
   timeout: 30_000,
 
   expect: {
@@ -18,10 +21,7 @@ export default defineConfig({
     ['html', { open: 'never' }]
   ],
 
-  // En GitHub Actions se ejecutan uno por uno.
-  // Esto evita que varias pruebas modifiquen al mismo tiempo
-  // el carrito, pedidos o inventario del usuario E2E.
-  workers: process.env.CI ? 1 : undefined,
+
 
   use: {
     baseURL:
