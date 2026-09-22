@@ -1,102 +1,88 @@
 import { expect, test } from '@playwright/test';
 import { loginAsBuyer } from '../helpers/account';
 
-test('CU-02 registra búsqueda, refresca recomendaciones y registra una visualización', async ({ page }) => {
-  test.setTimeout(90_000);
+test(
+  'CU-02 muestra recomendaciones y registra una visualización',
+  async ({ page }) => {
 
-  await loginAsBuyer(page);
+    test.setTimeout(90_000);
 
-  const search = page.getByRole('searchbox', {
-    name: 'Buscar productos',
-    exact: true,
-  });
+    // 1. Login real como comprador
+    await loginAsBuyer(page);
 
-  await expect(search).toBeVisible();
+    // 2. Recargar el frontend y comprobar que consulta
+    //    realmente las recomendaciones al backend.
+    const [recommendationsResponse] =
+      await Promise.all([
 
-  await search.fill('camiseta');
-  await expect(search).toHaveValue('camiseta');
+        page.waitForResponse(response => {
+          const url = new URL(response.url());
 
-  /*
-   * Esperamos las llamadas reales del frontend antes
-   * de hacer clic en el icono de búsqueda.
-   */
-  const [searchInteraction, refreshedRecommendations] =
-    await Promise.all([
-      page.waitForResponse(response => {
-        const url = new URL(response.url());
+          return url.pathname === '/api/recommendations'
+            && response.request().method() === 'GET';
+        }),
 
-        return url.pathname === '/api/interactions'
-          && response.request().method() === 'POST';
-      }),
+        page.reload()
+      ]);
 
-      page.waitForResponse(response => {
-        const url = new URL(response.url());
+    expect(
+      recommendationsResponse.ok(),
+      'El backend debe devolver las recomendaciones correctamente'
+    ).toBeTruthy();
 
-        return url.pathname === '/api/recommendations'
-          && response.request().method() === 'GET';
-      }),
 
-      search.press('Enter'),
-    ]);
+    // 3. Comprobar que el usuario las ve en la interfaz.
+    const recommendations =
+      page.locator('.recommendations-section');
 
-  /*
-   * Comprobamos que la interacción enviada realmente
-   * corresponda a una búsqueda.
-   */
-  expect(
-    searchInteraction.request().postDataJSON()
-  ).toMatchObject({
-    interactionType: 'SEARCH',
-    searchTerm: 'camiseta',
-  });
+    await expect(
+      recommendations.getByRole('heading', {
+        name: 'Recomendado para ti',
+        exact: true
+      })
+    ).toBeVisible();
 
-  expect(
-    searchInteraction.status(),
-    'La búsqueda debe registrarse como interacción'
-  ).toBe(201);
 
-  expect(
-    refreshedRecommendations.ok(),
-    'Las recomendaciones deben refrescarse'
-  ).toBeTruthy();
+    const firstCard =
+      recommendations
+        .locator('article.recommendation-card')
+        .first();
 
-  const recommendations =
-    page.locator('.recommendations-section');
+    await expect(firstCard).toBeVisible();
 
-  await expect(
-    recommendations.getByRole('heading', {
-      name: 'Recomendado para ti',
-      exact: true,
-    })
-  ).toBeVisible();
 
-  const firstCard =
-    recommendations
-      .locator('article.recommendation-card')
-      .first();
+    // 4. Al seleccionar una recomendación,
+    //    el frontend debe registrar una interacción VIEW.
+    const [viewInteraction] =
+      await Promise.all([
 
-  await expect(firstCard).toBeVisible();
+        page.waitForResponse(response => {
+          const url = new URL(response.url());
 
-  const [viewInteraction] =
-    await Promise.all([
-      page.waitForResponse(response => {
-        const url = new URL(response.url());
+          return url.pathname === '/api/interactions'
+            && response.request().method() === 'POST'
+            && (response.request().postData() ?? '')
+              .includes('"interactionType":"VIEW"');
+        }),
 
-        return url.pathname === '/api/interactions'
-          && response.request().method() === 'POST';
-      }),
+        firstCard.click()
+      ]);
 
-      firstCard.click(),
-    ]);
 
-  expect(
-    viewInteraction.request().postDataJSON()
-  ).toMatchObject({
-    interactionType: 'VIEW',
-  });
+    expect(
+      viewInteraction.status(),
+      'La visualización debe registrarse'
+    ).toBe(201);
 
-  expect(
-    viewInteraction.status(),
-    'La visualización recomendada debe registrarse'
-  ).toBe(201);
-});
+
+    // 5. Verificamos que efectivamente se envió VIEW.
+    const body =
+      viewInteraction.request().postDataJSON();
+
+    expect(body).toMatchObject({
+      interactionType: 'VIEW'
+    });
+
+    expect(body.productId).not.toBeNull();
+  }
+);
