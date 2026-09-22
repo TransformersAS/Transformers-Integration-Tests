@@ -1,0 +1,66 @@
+name: CU02-CU03 Backend Integration
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cu02-cu03-integration:
+    name: CU-02 and CU-03 integration + JaCoCo
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout integration-test repository
+        uses: actions/checkout@v4
+        with:
+          path: tests-repo
+
+      - name: Checkout Marketplace application
+        uses: actions/checkout@v4
+        with:
+          repository: TransformersAS/Transformers-AS
+          ref: main
+          path: app
+          persist-credentials: false
+
+      - name: Copy CU-02 and CU-03 tests into the application test source set
+        shell: bash
+        run: |
+          mkdir -p app/backend/demo/src/test/java/com/transformersas/marketplace/external
+          cp tests-repo/backend-tests/src/test/java/com/transformersas/marketplace/external/*.java \
+             app/backend/demo/src/test/java/com/transformersas/marketplace/external/
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: app/backend/demo/pom.xml
+
+      - name: Check Docker for Testcontainers
+        run: docker info
+
+      - name: Run CU-02 and CU-03 integration tests
+        working-directory: app/backend/demo
+        run: |
+          ./mvnw clean test \
+            -Dtest=Cu02RecommendationIntegrationTests,Cu03CheckoutIntegrationTests
+          ./mvnw jacoco:report
+
+      - name: Upload integration reports and JaCoCo evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: cu02-cu03-integration-${{ github.sha }}
+          path: |
+            app/backend/demo/target/surefire-reports/
+            app/backend/demo/target/site/jacoco/
+          if-no-files-found: warn
+          retention-days: 14
