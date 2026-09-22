@@ -4,7 +4,7 @@ Este documento describe las pruebas E2E implementadas por Sofía para los casos 
 
 ## 1. Objetivo
 
-Validar el sistema completo desde la perspectiva del usuario mediante Playwright Test y Chromium, interactuando con frontend y backend reales. Las pruebas comprueban comportamientos observables: contenido renderizado, autenticación, compra, consulta y solicitud de cancelación de pedidos, roles y sesiones.
+Validar el sistema completo desde la perspectiva del usuario mediante Playwright Test y Chromium, interactuando con frontend y backend reales. Las pruebas comprueban comportamientos observables: contenido renderizado, autenticación, compra, consulta y cancelación definitiva de pedidos, roles y sesiones.
 
 Las pruebas E2E conviven con Java/Maven, JUnit y REST Assured. Cada archivo descrito contiene un test: el bloque actual tiene tres pruebas E2E.
 
@@ -59,7 +59,7 @@ Demuestra disponibilidad básica del frontend, renderizado identificable y comun
 
 Archivo: [tests/e2e/checkout-order-cancellation.spec.ts](../tests/e2e/checkout-order-cancellation.spec.ts).
 
-**Precondición:** cuenta y producto del perfil local disponibles, y carrito vacío. Antes de agregar productos, el test abre el carrito, observa `GET /api/cart`, exige respuesta exitosa y terminada, comprueba el encabezado de carrito vacío y la ausencia de botones `Eliminar`. No vacía un carrito previo ni consume deliberadamente su contenido.
+**Precondición:** cuenta del perfil local con correo verificado, producto demo disponible y carrito vacío. El perfil `local` crea la cuenta sin verificar; CI marca únicamente esa cuenta demo como verificada en su base efímera antes de ejecutar las pruebas. Esto prepara el usuario, sin simular login ni respuestas de negocio. Antes de agregar productos, el test abre el carrito, observa `GET /api/cart`, exige respuesta exitosa y terminada, comprueba el encabezado de carrito vacío y la ausencia de botones `Eliminar`. No vacía un carrito previo ni consume deliberadamente su contenido.
 
 El flujo real es el siguiente:
 
@@ -79,12 +79,12 @@ El flujo real es el siguiente:
 14. **Cantidad:** comprueba el texto que empieza por `Cantidad: 1 · Precio unitario:`.
 15. **Datos principales:** exige subtotal visible, la misma transacción capturada, una referencia de dirección registrada y `Envío: STANDARD`. Compara el total del detalle con el pagado: elimina caracteres no numéricos y contempla los dos decimales que muestra el detalle. No vuelve a calcular impuestos ni descuentos.
 16. **Estado confirmado:** comprueba el texto exacto `Confirmado` en el detalle, correspondiente a `CONFIRMED`. En el código esta aserción se realiza inmediatamente después de abrir el detalle, antes de revisar sus productos.
-17. **Solicitud de cancelación:** pulsa `Solicitar cancelación`.
-18. **Confirmación:** comprueba que la pregunta menciona el número del pedido creado y pulsa `Confirmar solicitud`.
-19. **Estado solicitado:** exige `Cancelación solicitada`, correspondiente a `CANCELLATION_REQUESTED`, y `La cancelación de este pedido ya fue solicitada.`. La comprobación se hace sobre la UI, no mediante una consulta directa del estado en la BD.
-20. **Sin segunda solicitud:** exige que ya no existan los botones `Solicitar cancelación` y `Confirmar solicitud`. Vuelve a la lista, reabre el mismo pedido y verifica que persisten el estado solicitado y la ausencia del botón de solicitud.
+17. **Cancelación directa:** pulsa `Cancelar pedido` desde `CONFIRMED`; exige que `Confirmar cancelación` esté deshabilitado antes de elegir motivo.
+18. **Motivo Otro:** selecciona `Otro` en `Motivo de cancelación`. Comprueba que aparece la explicación obligatoria y que no puede confirmar con texto vacío ni solo espacios. Completa una explicación y verifica que se habilita la confirmación definitiva del pedido identificado.
+19. **Cancelación y reembolso:** pulsa `Confirmar cancelación`, observa el POST real `/api/orders/<id>/cancellation` y exige HTTP 200, `CANCELLED`, `REFUNDED` y reembolso `COMPLETED`. La UI debe mostrar `Cancelado` y `Pedido cancelado. Reembolso completado`, sin botones para volver a cancelar.
+20. **Persistencia:** recarga la página, abre `Mis pedidos` y consulta otra vez el mismo pedido. Exige que el GET real del detalle devuelva `CANCELLED` y que la UI siga mostrando `Cancelado`, sin botón de cancelación.
 
-El requisito funcional comprobado es que un comprador autenticado puede completar una compra, consultar los datos del pedido generado y solicitar su cancelación una sola vez desde la UI, manteniéndose ese estado al volver a consultar. No se comprueba la aprobación definitiva de la cancelación, reembolsos ni una transacción bancaria de producción.
+El requisito funcional comprobado es que un comprador autenticado puede comprar, consultar y cancelar definitivamente un pedido propio desde `CONFIRMED`, con motivo `OTHER` y explicación, conservando el estado al recargar. No hay aprobación del vendedor. El test observa el resultado del mecanismo de reembolso existente del backend (pasarela simulada del perfil de pruebas); no simula respuestas de la aplicación ni realiza una transacción bancaria de producción. La cancelación desde `IN_PREPARATION`, el aislamiento ante pedidos ajenos/inexistentes, la persistencia del motivo y la reposición del inventario se cubren en backend; este E2E mantiene un único recorrido de compra/cancelación.
 
 ## 6. Prueba 3 — Seguridad de cuenta
 
@@ -114,7 +114,7 @@ Este test valida cambio de rol, consulta y revocación selectiva de sesiones, co
 
 - **`getByRole`:** botones, diálogos, encabezados, radios, combobox, artículos, listas, definiciones y mensajes de estado se localizan mediante sus roles y nombres accesibles.
 - **`getByText`:** correo, roles, cantidades, importes, estados e identificadores visibles se comprueban por texto. Las expresiones de número de pedido y transacción admiten espacios del renderizado.
-- **`getByPlaceholder`:** se utiliza para la dirección de entrega. Los tests actuales no utilizan `getByLabel`; los campos de login se encuentran con `getByRole('textbox', ...)`.
+- **`getByPlaceholder`:** se utiliza para la dirección de entrega. Los campos de login y la explicación de cancelación se encuentran con `getByRole('textbox', ...)`; el motivo se selecciona con `getByRole('combobox', ...)`.
 - **Ámbito de los selectores:** las búsquedas se restringen al diálogo, panel, artículo o fila correspondiente. Para `Total pagado` se navega al padre con `locator('..')` y se lee su `strong`; existe esa dependencia estructural concreta, pero no se usan clases CSS generadas.
 - **Sin sleeps fijos en tests:** se esperan estados visibles, botones ocultos y respuestas reales. El polling de sesiones espera una condición observable. El bucle de health del workflow sí contiene pausas acotadas, fuera de las pruebas Playwright.
 - **Transiciones Ionic:** el selector de rol se activa con teclado porque una etiqueta puede superponerse al botón; se espera que desaparezca `OK` antes de continuar.
@@ -123,7 +123,7 @@ Este test valida cambio de rol, consulta y revocación selectiva de sesiones, co
 
 ## 8. Ejecución local
 
-Se requiere Node.js/npm y el Marketplace levantado externamente, con cuenta E2E, roles, producto y carrito vacío para la prueba de compra. Desde este repositorio:
+Se requiere Node.js/npm y el Marketplace levantado externamente, con cuenta E2E, roles, producto correo de la cuenta verificado y carrito vacío para la prueba de compra. Desde este repositorio:
 
 ```bash
 npm ci
@@ -148,6 +148,12 @@ E2E_PASSWORD='MarketplaceDemo456!' npm run test:e2e
 
 Debe usarse el valor que tenga la cuenta del entorno. El test no restablece la contraseña. `npm run test:e2e:headed` ejecuta la suite con el navegador visible. Los comandos básicos también están en el [README](../README.md#e2e-con-playwright).
 
+Para ejecutar únicamente CU-11 contra el SUT levantado:
+
+```bash
+FRONTEND_BASE_URL=http://localhost:4300 npm run test:e2e -- tests/e2e/checkout-order-cancellation.spec.ts
+```
+
 ## 9. Evidencia
 
 | Ubicación o artefacto | Comportamiento y utilidad |
@@ -165,22 +171,24 @@ Ambos directorios son generados, están ignorados por Git y no se versionan. Las
 El workflow real [integration-tests.yml](../.github/workflows/integration-tests.yml) ejecuta automáticamente las pruebas en GitHub Actions ante push a cualquier rama y pull requests.
 
 1. Usa Ubuntu 24.04, permisos `contents: read` y timeout de 45 minutos para builds y descargas.
-2. Hace checkout de este repositorio y de Transformers-AS en `backend-source`, fijado al commit `710ce4681d579fbc91515848bfcd6fbb410e9084`. No depende de una rama móvil del sistema bajo prueba.
+2. Hace checkout de este repositorio y de Transformers-AS en `backend-source`, fijado al commit `8c4d58129bd80f2bd10b31c49087f9d69c1fe90a`. No depende de una rama móvil del sistema bajo prueba.
 3. Configura Java 21 y prepara el `.env` de Compose con contraseñas exclusivas del entorno efímero.
 4. Genera `$RUNNER_TEMP/compose.e2e.yaml`, que añade `SPRING_PROFILES_ACTIVE: local` al backend. El override pertenece al runner y no modifica el Compose de Transformers-AS.
 5. Configura Node 22 con cache npm, ejecuta `npm ci` e instala Chromium y dependencias del sistema con `npx playwright install --with-deps chromium`.
 6. Levanta MySQL, backend y frontend con el Compose principal y el override: `up -d --build --wait --wait-timeout 300`. El proyecto usa el ID de ejecución y el número de intento para aislar sus volúmenes.
 7. En la máquina limpia, el perfil local provisiona `demo@marketplace.local` / `MarketplaceDemo123!`, roles COMPRADOR/VENDEDOR y `Camiseta demo local` en la BD nueva.
 8. Además del health de Compose, espera backend `/actuator/health/readiness` con estado UP y respuesta exitosa del frontend en `http://localhost:4300/`, mediante un bucle limitado a 30 intentos.
-9. Ejecuta `./mvnw verify` con `BACKEND_BASE_URL=http://localhost:8080`, conservando las pruebas Java y los reportes Surefire.
-10. Ejecuta después `npm run test:e2e` para los tres E2E, con frontend local y las credenciales iniciales del perfil. Puede ejecutarlos aunque Maven falle, siempre que readiness e instalación de Chromium hayan terminado correctamente y el job no esté cancelado.
+9. Marca `email_verified_at` únicamente para `demo@marketplace.local` en la base efímera y ejecuta `./mvnw verify` con `BACKEND_BASE_URL=http://localhost:8080`, conservando las pruebas Java y los reportes Surefire.
+10. Ejecuta después `npm run test:e2e` para la suite E2E, con frontend local y las credenciales iniciales del perfil. Puede ejecutarlos aunque Maven falle, siempre que readiness e instalación de Chromium hayan terminado correctamente y el job no esté cancelado.
 11. Captura logs Docker ante fallo. Con `if: always()` publica `target/surefire-reports/`, `playwright-report/`, `test-results/` y los logs disponibles como artifacts, con retención de 7 días.
 12. Con `if: always()` ejecuta `down --volumes --remove-orphans`, usando el mismo `.env`, Compose principal, override y proyecto del arranque. La limpieza comprueba antes que existan los archivos de configuración.
 
-**Resultado de la ejecución real validada: 3/3 pruebas Playwright aprobadas en GitHub Actions.** Este resultado ya fue confirmado para el bloque actual; la actualización de documentación no implica una nueva ejecución ni añade resultados de otras pruebas.
+**Validación actual de CU-11 (2026-09-22):** `npm run test:e2e -- tests/e2e/checkout-order-cancellation.spec.ts`: **1/1 aprobado en Chromium (4,3 s)**, contra frontend, backend y MySQL reales del commit `8c4d58129bd80f2bd10b31c49087f9d69c1fe90a`. Ejecución local en `http://127.0.0.1:14311`, usando el Compose existente con proyecto/base aislados y la cuenta demo verificada como en CI. No se ejecutaron otros E2E ni GitHub Actions en esta validación.
+
+**Evidencia histórica:** las tres pruebas de Sofía fueron aprobadas previamente en GitHub Actions. Ese resultado no valida por sí solo el cambio actual de CU-11 ni el nuevo ref del SUT.
 
 ## 11. Alcance
 
-Estas pruebas cubren específicamente los flujos implementados por Sofía: disponibilidad inicial, compra con consulta y solicitud de cancelación de pedido, y seguridad de cuenta con roles y sesiones. No pretenden representar todas las pruebas funcionales de todos los casos de uso del equipo.
+Estas pruebas cubren específicamente los flujos implementados por Sofía: disponibilidad inicial, compra con consulta y cancelación definitiva de pedido, y seguridad de cuenta con roles y sesiones. No pretenden representar todas las pruebas funcionales de todos los casos de uso del equipo.
 
-La cobertura descrita se limita a las aserciones de los tres tests reales. No incluye uso funcional del buscador, filtros de catálogo, otras cantidades o productos, cupones, pagos rechazados o pendientes, reembolsos, cancelación definitiva, cambio/recuperación de contraseña ni las operaciones de negocio del vendedor. Tampoco constituye una medición de cobertura de código o una validación de pagos de producción.
+La cobertura descrita se limita a las aserciones de los tres tests reales. No incluye uso funcional del buscador, filtros de catálogo, otras cantidades o productos, cupones, pagos rechazados o pendientes, reembolsos bancarios de producción, cambio/recuperación de contraseña ni las operaciones de negocio del vendedor. Tampoco constituye una medición de cobertura de código o una validación de pagos de producción.
