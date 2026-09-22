@@ -111,9 +111,9 @@ jobs:
             "INSERT INTO categories(name, active) SELECT 'Hogar', TRUE FROM DUAL \
              WHERE NOT EXISTS (SELECT 1 FROM categories WHERE name = 'Hogar');"
 
-      - name: Verify the local E2E fixture account
-        # CU-11 requiere un comprador habilitado para login; la verificación de correo pertenece a CU-08.
-        # Solo la cuenta demo de la base efímera creada por este job.
+      - name: Verify the Integration Tests and E2E fixture accounts
+        # CU-08 exige correo verificado para login, también para soporte y vecino (CU-21).
+        # Solo fixtures locales y de cu20-demo-seed.sh en la base efímera de este job.
         run: |
           docker compose \
             --env-file backend-source/.env \
@@ -121,7 +121,8 @@ jobs:
             -f "$RUNNER_TEMP/compose.e2e.yaml" \
             exec -T mysql sh -c 'MYSQL_PWD="$MYSQL_PASSWORD" exec mysql --user="$MYSQL_USER" "$MYSQL_DATABASE"' <<'SQL'
           UPDATE user_accounts SET email_verified_at = COALESCE(email_verified_at, CURRENT_TIMESTAMP(6))
-          WHERE email = 'demo@marketplace.local';
+          WHERE email IN ('demo@marketplace.local', 'soporte.demo@example.com',
+                          'comprador.demo@example.com', 'vendedor.demo@example.com', 'vecino.demo@example.com');
           SQL
 
       - name: Run integration tests
