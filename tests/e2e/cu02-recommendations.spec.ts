@@ -36,9 +36,7 @@ test('CU-02 registra búsqueda, refresca recomendaciones y registra una visualiz
           && response.request().method() === 'GET';
       }),
 
-      page
-        .locator('label.search ion-icon[name="search-outline"]')
-        .click(),
+      search.press('Enter'),
     ]);
 
   /*
