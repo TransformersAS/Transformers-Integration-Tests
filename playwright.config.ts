@@ -18,6 +18,11 @@ export default defineConfig({
     ['html', { open: 'never' }]
   ],
 
+  // En GitHub Actions se ejecutan uno por uno.
+  // Esto evita que varias pruebas modifiquen al mismo tiempo
+  // el carrito, pedidos o inventario del usuario E2E.
+  workers: process.env.CI ? 1 : undefined,
+
   use: {
     baseURL:
       process.env.FRONTEND_BASE_URL?.trim()
@@ -30,12 +35,13 @@ export default defineConfig({
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
 
-    // CI = sin ventana
-    // DEMO_MODE=true = navegador visible
+    // GitHub Actions: headless
+    // DEMO_MODE=true: navegador visible
     headless: !demoMode,
 
     launchOptions: {
-      // En demo espera 1.3 segundos entre acciones
+      // La ejecución normal sigue siendo rápida.
+      // La demo se ralentiza para poder verla en la sustentación.
       slowMo: demoMode ? 1300 : 0,
 
       args: demoMode

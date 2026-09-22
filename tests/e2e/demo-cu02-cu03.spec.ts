@@ -5,6 +5,14 @@ test(
   'DEMO CU-02 + CU-03: recomendación, rechazo y compra aprobada',
   async ({ page }) => {
 
+    // Esta prueba es solo para la demostración local.
+    // En GitHub Actions se omite para que no interfiera
+    // con los demás E2E que usan el mismo carrito/usuario.
+    test.skip(
+      process.env.DEMO_MODE !== 'true',
+      'Demo visual solo para ejecución local'
+    );
+
     test.setTimeout(180_000);
 
     const demoMode =
@@ -43,7 +51,7 @@ test(
 
     await recommendations.scrollIntoViewIfNeeded();
 
-    // El profesor alcanza a ver la sección
+    // Mostrar claramente la sección de recomendaciones
     await pause(5000);
 
 
@@ -67,12 +75,12 @@ test(
 
     await recommendedProduct.hover();
 
-    // Mostrar claramente cuál producto se eligió
+    // Mostrar cuál producto fue recomendado
     await pause(4000);
 
 
     // =========================================================
-    // 4. REGISTRAR VIEW
+    // 4. REGISTRAR VISUALIZACIÓN
     // =========================================================
 
     const [viewResponse] =
@@ -96,7 +104,7 @@ test(
 
 
     // =========================================================
-    // 5. AGREGAR ESE MISMO PRODUCTO RECOMENDADO
+    // 5. AGREGAR EL PRODUCTO RECOMENDADO AL CARRITO
     // =========================================================
 
     const [addedToCart] =
@@ -145,7 +153,7 @@ test(
       })
     ).toBeVisible();
 
-    // ⭐ Se ve que el producto recomendado llegó al carrito
+    // Mostrar que el producto recomendado llegó al carrito
     await pause(5000);
 
 
@@ -201,7 +209,7 @@ test(
 
     await summary.scrollIntoViewIfNeeded();
 
-    // ⭐ Mostrar precio, envío y total
+    // Mostrar resumen, precio, envío y total
     await pause(5000);
 
 
@@ -216,7 +224,7 @@ test(
       label: 'Simular pago rechazado'
     });
 
-    // Mostrar al profesor el método seleccionado
+    // Mostrar claramente el método seleccionado
     await pause(4000);
 
     const confirmButton =
@@ -236,14 +244,12 @@ test(
         page.waitForResponse(response => {
           const url = new URL(response.url());
 
-          return url.pathname ===
-            '/api/payments/process'
+          return url.pathname === '/api/payments/process'
             && response.request().method() === 'POST';
         }),
 
         confirmButton.click()
       ]);
-
 
     expect(rejectedPayment.ok()).toBeTruthy();
 
@@ -254,7 +260,7 @@ test(
 
 
     // =========================================================
-    // 10. MOSTRAR RECHAZO
+    // 10. MOSTRAR PAGO RECHAZADO
     // =========================================================
 
     const rejectedTitle =
@@ -273,7 +279,7 @@ test(
 
     await rejectedTitle.scrollIntoViewIfNeeded();
 
-    // ⭐ MUY IMPORTANTE PARA LA PRESENTACIÓN
+    // Momento importante de la demo
     await pause(7000);
 
 
@@ -294,14 +300,12 @@ test(
         page.waitForResponse(response => {
           const url = new URL(response.url());
 
-          return url.pathname ===
-            '/api/payments/process'
+          return url.pathname === '/api/payments/process'
             && response.request().method() === 'POST';
         }),
 
         confirmButton.click()
       ]);
-
 
     expect(approvedPayment.ok()).toBeTruthy();
 
@@ -331,12 +335,12 @@ test(
 
     await approvedTitle.scrollIntoViewIfNeeded();
 
-    // ⭐ Aquí se ve claramente que finalmente pagó
+    // Mostrar claramente que la compra sí se completó
     await pause(7000);
 
 
     // =========================================================
-    // 13. CARRITO VACÍO
+    // 13. VERIFICAR CARRITO VACÍO
     // =========================================================
 
     await checkout
