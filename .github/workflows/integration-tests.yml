@@ -24,7 +24,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: TransformersAS/Transformers-AS
-          ref: 710ce4681d579fbc91515848bfcd6fbb410e9084
+          ref: main 
           path: backend-source
           persist-credentials: false
 
