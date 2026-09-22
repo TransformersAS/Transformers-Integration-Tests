@@ -38,6 +38,25 @@ cp .env.example .env
 docker compose up -d --build --wait
 ```
 
+CU-21 necesita una cuenta con rol SOPORTE, que no se autoregistra por API: sembrarla con
+`scripts/cu20-demo-seed.sh` del repositorio principal (repetible, no duplica cuentas ni publicaciones):
+
+```bash
+DEMO_PASSWORD='MarketplaceDemo123!' DB_PASSWORD='la-clave-de-marketplace_app-en-.env' \
+  ./scripts/cu20-demo-seed.sh
+```
+
+CU-21 tambien publica contenido nuevo en la tienda vecina, y publicar exige una categoria activa; la tabla
+`categories` empieza vacia y crearlas es solo-ADMIN, sin cuenta de prueba disponible para eso. Sembrar la
+categoria `Hogar` una vez, contra el contenedor de MySQL local (`mysql-mkt` por defecto):
+
+```bash
+docker exec -i -e MYSQL_PWD='la-clave-de-marketplace_app-en-.env' mysql-mkt \
+  mysql --default-character-set=utf8mb4 -umarketplace_app marketplace \
+  -e "INSERT INTO categories(name, active) SELECT 'Hogar', TRUE FROM DUAL \
+      WHERE NOT EXISTS (SELECT 1 FROM categories WHERE name = 'Hogar');"
+```
+
 Despues, en este repositorio:
 
 ```bash
@@ -63,10 +82,16 @@ y `status == "UP"`. No representa cobertura funcional de un caso de uso.
 | `BACKEND_BASE_URL` | `http://localhost:8080` | Backend contra el que se ejecutan las pruebas. |
 | `E2E_EMAIL` | `demo@marketplace.local` | Cuenta del perfil local con la que se inicia sesion. |
 | `E2E_PASSWORD` | `MarketplaceDemo123!` | Contrasena de esa cuenta. |
+| `E2E_SUPPORT_EMAIL` | `soporte.demo@example.com` | Cuenta con rol SOPORTE (CU-21), sembrada con `scripts/cu20-demo-seed.sh` del repositorio principal; ese rol no se autoregistra por API. |
+| `E2E_SUPPORT_PASSWORD` | `MarketplaceDemo123!` | Contrasena de esa cuenta (la misma `DEMO_PASSWORD` con la que se sembro). |
+| `E2E_NEIGHBOR_EMAIL` | `vecino.demo@example.com` | Cuenta VENDEDOR de la tienda vecina, sembrada por el mismo script. CU-20/CU-21 publican y reportan contenido de esta tienda: no se puede reportar contenido propio. |
+| `E2E_NEIGHBOR_PASSWORD` | `MarketplaceDemo123!` | Contrasena de esa cuenta. |
 | `LOGISTICS_WEBHOOK_SECRET` | sin valor | El mismo con el que arranco el backend. Las pruebas de seguimiento logistico firman con el las novedades del proveedor; sin el, el webhook queda cerrado y esas pruebas fallan al arrancar. |
 
 ### Casos de uso cubiertos
 
+- CU-19 solicitar y gestionar devoluciones: `returns/ReturnRequestIntegrationTest`.
+- CU-21 moderar reportes de contenido: `reports/ModerationIntegrationTest`.
 - CU-23 preparar y despachar pedidos recibidos: `orders/SellerFulfillmentIntegrationTest`.
 - CU-24 seguimiento logistico de pedidos: `logistics/OrderTrackingIntegrationTest`.
 - CU-25 seguimiento logistico de devoluciones: `logistics/ReturnTrackingIntegrationTest`.
@@ -142,8 +167,10 @@ reportes de Surefire como artifact. El backend queda fijado a un commit concreto
 de `main`, no a una rama movil: al agregar pruebas de un caso de uso nuevo hay
 que mover ese `ref` a un commit que ya lo incluya. El job define
 `LOGISTICS_WEBHOOK_SECRET` para ese entorno efimero y lo agrega al `.env` del
-Compose, porque el webhook logistico queda cerrado sin secreto. Al terminar, baja los servicios y elimina
-los volumenes temporales. No duplica Dockerfiles ni publica imagenes.
+Compose, porque el webhook logistico queda cerrado sin secreto. Antes de `mvnw verify` corre
+`scripts/cu20-demo-seed.sh` del backend contra el contenedor de MySQL del entorno efimero, para tener la
+cuenta SOPORTE y la tienda vecina, y siembra la categoria `Hogar` que CU-21 necesita para publicar contenido nuevo.
+Al terminar, baja los servicios y elimina los volumenes temporales. No duplica Dockerfiles ni publica imagenes.
 
 ## Cobertura
 

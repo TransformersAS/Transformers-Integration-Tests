@@ -93,6 +93,24 @@ jobs:
           echo 'Marketplace did not become ready within the bounded health checks.'
           exit 1
 
+      - name: Seed CU-20/CU-21 demo accounts
+        # soporte.demo@example.com (rol SOPORTE) y la publicación de la tienda vecina que CU-21 necesita moderar; ese
+        # rol no se autoregistra por API. Repetible: no duplica cuentas ni publicaciones.
+        run: |
+          DEMO_PASSWORD='MarketplaceDemo123!' \
+          DB_PASSWORD='ci-app-password' \
+          MYSQL_CONTAINER="${COMPOSE_PROJECT_NAME}-mysql-1" \
+          backend-source/scripts/cu20-demo-seed.sh
+
+      - name: Seed the category CU-21 needs to publish content
+        # Publicar exige una categoría activa; la tabla `categories` empieza vacía y crearlas es solo-ADMIN, sin
+        # cuenta de prueba disponible para eso.
+        run: |
+          docker exec -i -e MYSQL_PWD=ci-app-password "${COMPOSE_PROJECT_NAME}-mysql-1" \
+            mysql --default-character-set=utf8mb4 -umarketplace_app marketplace -e \
+            "INSERT INTO categories(name, active) SELECT 'Hogar', TRUE FROM DUAL \
+             WHERE NOT EXISTS (SELECT 1 FROM categories WHERE name = 'Hogar');"
+
       - name: Run integration tests
         env:
           BACKEND_BASE_URL: http://localhost:8080
