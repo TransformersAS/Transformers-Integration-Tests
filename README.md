@@ -71,11 +71,15 @@ y `status == "UP"`. No representa cobertura funcional de un caso de uso.
 - CU-24 seguimiento logistico de pedidos: `logistics/OrderTrackingIntegrationTest`.
 - CU-25 seguimiento logistico de devoluciones: `logistics/ReturnTrackingIntegrationTest`.
 - Firma y contrato del webhook logistico: `logistics/LogisticsWebhookIntegrationTest`.
+- CU-13 tramitar una reclamacion de compra: `claims/ClaimIntegrationTest`.
+- CU-15 controlar el inventario y el reabastecimiento: `stock/SellerInventoryIntegrationTest` y
+  `stock/SellerExcelIntegrationTest` (plantillas de Excel).
 
-El detalle de cada prueba esta en [docs/pruebas-cu23-cu24-cu25.md](docs/pruebas-cu23-cu24-cu25.md).
-La configuracion compartida vive en `support/`: `MarketplaceClient` (sesion y CSRF),
-`MarketplaceScenario` (las dos sesiones y el proveedor), `Purchases`, `Returns` y
-`LogisticsProvider` (firma HMAC de las novedades).
+El detalle de cada prueba esta en [docs/pruebas-cu23-cu24-cu25.md](docs/pruebas-cu23-cu24-cu25.md) y
+[docs/pruebas-cu13-cu15.md](docs/pruebas-cu13-cu15.md).
+La configuracion compartida vive en `support/`: `MarketplaceClient` (sesion, CSRF y subida de archivos),
+`MarketplaceScenario` (las dos sesiones y el proveedor), `Purchases`, `Returns`, `LogisticsProvider` (firma HMAC de
+las novedades) y `MinimalXlsx` (arma un `.xlsx` de prueba sin depender de ninguna libreria de Excel).
 
 ## E2E con Playwright
 

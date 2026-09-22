@@ -99,6 +99,11 @@ public final class MarketplaceClient {
         return withCsrf(request()).delete(path);
     }
 
+    /** POST con un archivo adjunto (multipart), como el que sube el panel de inventario al cargar un Excel. */
+    public Response postFile(String path, String fieldName, String fileName, byte[] content, String contentType) {
+        return withCsrf(request()).multiPart(fieldName, fileName, content, contentType).post(path);
+    }
+
     private RequestSpecification request() {
         RequestSpecification spec = given().baseUri(baseUrl).redirects().follow(false);
         return sessionCookie == null ? spec : spec.cookie("SESSION", sessionCookie);
