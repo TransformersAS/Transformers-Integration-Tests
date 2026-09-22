@@ -28,8 +28,13 @@ public final class MarketplaceClient {
 
     /** Inicia sesión con la cuenta configurada (por defecto la del perfil local) y deja activo el rol indicado. */
     public static MarketplaceClient loginAs(String role) {
+        return loginAs(BackendConfiguration.accountEmail(), BackendConfiguration.accountPassword(), role);
+    }
+
+    /** Inicia sesión con una cuenta distinta a la configurada por defecto (por ejemplo, la de soporte). */
+    public static MarketplaceClient loginAs(String email, String password, String role) {
         MarketplaceClient client = new MarketplaceClient(BackendConfiguration.baseUrl());
-        client.login(BackendConfiguration.accountEmail(), BackendConfiguration.accountPassword());
+        client.login(email, password);
         client.selectActiveRole(role);
         return client;
     }
