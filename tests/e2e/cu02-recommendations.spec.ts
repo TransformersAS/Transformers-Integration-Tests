@@ -7,11 +7,29 @@ test(
 
     test.setTimeout(90_000);
 
-    // 1. Login real como comprador
+    const demoMode =
+      process.env.DEMO_MODE === 'true';
+
+    const demoPause = async (milliseconds: number) => {
+      if (demoMode) {
+        await page.waitForTimeout(milliseconds);
+      }
+    };
+
+
+    // =========================================================
+    // 1. LOGIN
+    // =========================================================
+
     await loginAsBuyer(page);
 
-    // 2. Recargar el frontend y comprobar que consulta
-    //    realmente las recomendaciones al backend.
+    await demoPause(2000);
+
+
+    // =========================================================
+    // 2. OBTENER RECOMENDACIONES
+    // =========================================================
+
     const [recommendationsResponse] =
       await Promise.all([
 
@@ -25,34 +43,67 @@ test(
         page.reload()
       ]);
 
+
     expect(
       recommendationsResponse.ok(),
       'El backend debe devolver las recomendaciones correctamente'
     ).toBeTruthy();
 
 
-    // 3. Comprobar que el usuario las ve en la interfaz.
+    // =========================================================
+    // 3. MOSTRAR SECCIÓN DE RECOMENDACIONES
+    // =========================================================
+
     const recommendations =
       page.locator('.recommendations-section');
 
-    await expect(
+    const title =
       recommendations.getByRole('heading', {
         name: 'Recomendado para ti',
         exact: true
-      })
-    ).toBeVisible();
+      });
 
+
+    await expect(title).toBeVisible();
+
+    await recommendations.scrollIntoViewIfNeeded();
+
+
+    // ⭐ MOMENTO IMPORTANTE:
+    // deja visible toda la sección de recomendaciones
+    await demoPause(6000);
+
+
+    // =========================================================
+    // 4. MOSTRAR PRODUCTO RECOMENDADO
+    // =========================================================
 
     const firstCard =
       recommendations
         .locator('article.recommendation-card')
         .first();
 
-    await expect(firstCard).toBeVisible();
+
+    await expect(
+      firstCard,
+      'Debe mostrarse al menos un producto recomendado'
+    ).toBeVisible();
 
 
-    // 4. Al seleccionar una recomendación,
-    //    el frontend debe registrar una interacción VIEW.
+    await firstCard.scrollIntoViewIfNeeded();
+
+    // Playwright coloca el mouse sobre el producto
+    // para que el profesor vea claramente cuál seleccionará.
+    await firstCard.hover();
+
+    // ⭐ Se queda mostrando el producto recomendado
+    await demoPause(5000);
+
+
+    // =========================================================
+    // 5. REGISTRAR VISUALIZACIÓN
+    // =========================================================
+
     const [viewInteraction] =
       await Promise.all([
 
@@ -75,14 +126,23 @@ test(
     ).toBe(201);
 
 
-    // 5. Verificamos que efectivamente se envió VIEW.
+    // =========================================================
+    // 6. VERIFICAR INTERACCIÓN
+    // =========================================================
+
     const body =
       viewInteraction.request().postDataJSON();
+
 
     expect(body).toMatchObject({
       interactionType: 'VIEW'
     });
 
+
     expect(body.productId).not.toBeNull();
+
+
+    // Pequeña pausa final para la sustentación
+    await demoPause(3000);
   }
 );
