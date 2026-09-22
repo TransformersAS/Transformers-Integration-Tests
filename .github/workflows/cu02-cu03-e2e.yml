@@ -1,0 +1,121 @@
+name: CU02-CU03 E2E
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cu02-cu03-e2e:
+    name: CU-02 and CU-03 Playwright E2E
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      COMPOSE_PROJECT_NAME: marketplace-cu02-cu03-e2e-${{ github.run_id }}-${{ github.run_attempt }}
+
+    steps:
+      - name: Checkout integration-test repository
+        uses: actions/checkout@v4
+
+      - name: Checkout current Marketplace main
+        uses: actions/checkout@v4
+        with:
+          repository: TransformersAS/Transformers-AS
+          ref: main
+          path: app
+          persist-credentials: false
+
+      - name: Prepare backend environment
+        working-directory: app
+        run: |
+          cp .env.example .env
+          sed -i 's/REPLACE_WITH_LOCAL_APP_PASSWORD/ci-app-password/' .env
+          sed -i 's/REPLACE_WITH_DIFFERENT_LOCAL_ROOT_PASSWORD/ci-root-password/' .env
+
+      - name: Prepare E2E Compose override
+        run: |
+          cat > "$RUNNER_TEMP/compose.e2e.yaml" <<'YAML'
+          services:
+            backend:
+              environment:
+                SPRING_PROFILES_ACTIVE: local
+          YAML
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install Playwright dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Start MySQL, backend and frontend
+        run: |
+          docker compose \
+            --env-file app/.env \
+            -f app/compose.yaml \
+            -f "$RUNNER_TEMP/compose.e2e.yaml" \
+            up -d --build --wait --wait-timeout 300
+
+      - name: Wait for Marketplace readiness
+        run: |
+          for attempt in {1..30}; do
+            if curl --fail --silent --max-time 5 http://localhost:8080/actuator/health/readiness | grep -q '"status":"UP"' \
+              && curl --fail --silent --max-time 5 http://localhost:4300/ > /dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo 'Marketplace did not become ready.'
+          exit 1
+
+      - name: Run CU-02 and CU-03 Playwright tests
+        env:
+          FRONTEND_BASE_URL: http://localhost:4300
+          E2E_EMAIL: demo@marketplace.local
+          E2E_PASSWORD: MarketplaceDemo123!
+        run: |
+          npx playwright test \
+            tests/e2e/cu02-recommendations.spec.ts \
+            tests/e2e/cu03-checkout.spec.ts \
+            --workers=1
+
+      - name: Capture Docker logs on failure
+        if: ${{ failure() }}
+        run: |
+          mkdir -p docker-logs
+          docker compose \
+            --env-file app/.env \
+            -f app/compose.yaml \
+            -f "$RUNNER_TEMP/compose.e2e.yaml" \
+            logs --no-color > docker-logs/compose.log 2>&1 || true
+
+      - name: Upload Playwright evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: cu02-cu03-e2e-${{ github.sha }}
+          path: |
+            playwright-report/
+            test-results/
+            docker-logs/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Stop Marketplace and remove volumes
+        if: ${{ always() }}
+        run: |
+          docker compose \
+            --env-file app/.env \
+            -f app/compose.yaml \
+            -f "$RUNNER_TEMP/compose.e2e.yaml" \
+            down --volumes --remove-orphans || true
