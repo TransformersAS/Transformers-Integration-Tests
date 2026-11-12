@@ -71,9 +71,35 @@ public final class MarketplaceClient {
         refreshCsrf();
     }
 
+    /** Public CSRF session for authentication, recovery and verification contracts. */
+    public static MarketplaceClient visitor() {
+        MarketplaceClient client = anonymous();
+        client.refreshCsrf();
+        return client;
+    }
+
+    public Response authenticate(String email, String password) {
+        refreshCsrf();
+        Response response = withCsrf(request()).formParam("email", email)
+                .formParam("password", password).post("/api/auth/login");
+        if (response.statusCode() == 204) {
+            if (response.getCookie("SESSION") != null) sessionCookie = response.getCookie("SESSION");
+            refreshCsrf();
+        }
+        return response;
+    }
+
+    public void renewCsrf() { refreshCsrf(); }
+
+    /** Negative security checks retain the real session while deliberately omitting CSRF. */
+    public Response withoutCsrf(String method, String path, String json) {
+        return request().contentType(ContentType.JSON).body(json).request(method, path);
+    }
+
     private void refreshCsrf() {
-        Response response = given().baseUri(baseUrl).cookie("SESSION", sessionCookie).get("/api/auth/csrf");
+        Response response = request().get("/api/auth/csrf");
         response.then().statusCode(200);
+        if (response.getCookie("SESSION") != null) sessionCookie = response.getCookie("SESSION");
         csrfHeader = response.jsonPath().getString("headerName");
         csrfToken = response.jsonPath().getString("token");
     }

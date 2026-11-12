@@ -1,0 +1,47 @@
+services:
+  mailpit:
+    image: axllent/mailpit:v1.27
+    ports:
+      - '127.0.0.1:${CU08_MAIL_PORT:-18028}:8025'
+  frontend:
+    volumes:
+      - ${CU08_NGINX_FILE:?Set the CU08 nginx template}:/etc/nginx/templates/default.conf.template:ro
+    networks:
+      default:
+        ipv4_address: 172.30.248.10
+  backend:
+    environment:
+      SPRING_PROFILES_ACTIVE: local,compose-local
+      APP_CORS_ALLOWED_ORIGINS: http://127.0.0.1:${CU08_E2E_PORT:-14308}
+      SPRING_MAIL_HOST: mailpit
+      SPRING_MAIL_PORT: 1025
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH: 'false'
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: 'false'
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_REQUIRED: 'false'
+      EMAIL_VERIFICATION_FROM: marketplace@example.test
+      PASSWORD_RECOVERY_FROM: marketplace@example.test
+      SERVER_FORWARD_HEADERS_STRATEGY: native
+      SERVER_TOMCAT_REMOTEIP_INTERNAL_PROXIES: '\Q172.30.248.10\E'
+      SERVER_TOMCAT_REMOTEIP_TRUSTED_PROXIES: ''
+      SERVER_TOMCAT_REMOTEIP_REMOTE_IP_HEADER: X-Forwarded-For
+      APP_AUTH_LOGIN_ATTEMPTS_TRUSTED_PROXY_ADDRESSES: 172.30.248.10
+      APP_AUTH_LOGIN_ATTEMPTS_ENABLED: '${CU08_GUARD_ENABLED:-false}'
+      APP_AUTH_LOGIN_ATTEMPTS_ORIGIN_VERIFIED: '${CU08_GUARD_ENABLED:-false}'
+      APP_AUTH_LOGIN_ATTEMPTS_ALLOWED_LOCAL_ORIGINS: '${CU08_OBSERVED_ORIGIN:-}'
+      SERVER_TOMCAT_ACCESSLOG_ENABLED: 'true'
+      SERVER_TOMCAT_ACCESSLOG_DIRECTORY: /tmp/cu08-origin
+      SERVER_TOMCAT_ACCESSLOG_PREFIX: origin
+      SERVER_TOMCAT_ACCESSLOG_SUFFIX: .log
+      SERVER_TOMCAT_ACCESSLOG_FILE_DATE_FORMAT: ''
+      SERVER_TOMCAT_ACCESSLOG_ROTATE: 'false'
+      SERVER_TOMCAT_ACCESSLOG_BUFFERED: 'false'
+      SERVER_TOMCAT_ACCESSLOG_REQUEST_ATTRIBUTES_ENABLED: 'true'
+      SERVER_TOMCAT_ACCESSLOG_PATTERN: 'origin=%a forwarded=%{org.apache.tomcat.request.forwarded}r status=%s'
+    depends_on:
+      mailpit:
+        condition: service_started
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 172.30.248.0/24
