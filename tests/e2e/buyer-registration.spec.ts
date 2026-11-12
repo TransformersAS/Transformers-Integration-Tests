@@ -56,18 +56,21 @@ test('CU07 real: an authenticated seller adds buyer without changing identity or
 
 test('CU07 validations preserve valid data and explain missing consent', async ({page}) => {
   await openBuyerRegistration(page);
+  // Ionic also renders errorText inside its shadow DOM; assert the explicit Angular alert.
+  const fieldError = (text: string) => page.getByText(text, {exact: true})
+    .and(page.locator('app-registro-comprador p.error[role="alert"]'));
   const submit = page.getByRole('button', {name: 'Crear cuenta de comprador', exact: true});
   await submit.click();
-  await expect(page.getByText('Escribe tu nombre completo.', {exact: true})).toBeVisible();
+  await expect(fieldError('Escribe tu nombre completo.')).toBeVisible();
   const email = uniqueBuyerEmail();
   await fillBuyer(page, email);
   const password = page.locator('ion-input[name="password"] input');
   const confirmation = page.locator('ion-input[name="passwordConfirmation"] input');
   await confirmation.fill('DifferentPassword123!');
   await submit.click();
-  await expect(page.getByText('Las contraseñas no coinciden.', {exact: true})).toBeVisible();
+  await expect(fieldError('Las contraseñas no coinciden.')).toBeVisible();
   await password.fill('short'); await confirmation.fill('short'); await submit.click();
-  await expect(page.getByText('La contraseña requiere al menos 12 caracteres.', {exact: true})).toBeVisible();
+  await expect(fieldError('La contraseña requiere al menos 12 caracteres.')).toBeVisible();
   await password.fill('Cu07RealPassword123!'); await confirmation.fill('Cu07RealPassword123!'); await submit.click();
   await expect(page.getByText('Acepta los términos y condiciones.', {exact: true})).toBeVisible();
   await expect(page.getByText('Acepta la política de privacidad.', {exact: true})).toBeVisible();

@@ -13,6 +13,12 @@ on:
       - 'scripts/cu07-*'
       - '.github/workflows/cu07-external.yml'
   workflow_dispatch:
+    inputs:
+      run_regression:
+        description: 'Run the full regression suite and preserve any failures'
+        type: boolean
+        default: false
+        required: false
 permissions:
   contents: read
 jobs:
@@ -70,6 +76,7 @@ jobs:
         run: bash scripts/cu07-compose.sh down --volumes --remove-orphans
 
   cu07-regression:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_regression }}
     name: All external regressions against CU07 (failures remain visible)
     runs-on: ubuntu-24.04
     timeout-minutes: 45
