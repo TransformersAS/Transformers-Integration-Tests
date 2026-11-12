@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.transformersas</groupId>
+  <version>0.1.0-SNAPSHOT</version>
+  <artifactId>cu09-external-tests</artifactId>
+  <name>Pruebas externas aisladas CU09</name>
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.compiler.release>21</maven.compiler.release>
+        <junit.version>5.12.2</junit.version>
+        <rest-assured.version>5.5.6</rest-assured.version>
+    </properties>
+    <dependencies>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.rest-assured</groupId>
+            <artifactId>rest-assured</artifactId>
+            <version>${rest-assured.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+  <build>
+    <directory>${project.basedir}/../../target/cu09/java</directory>
+    <testSourceDirectory>${project.basedir}/../../src/test/java</testSourceDirectory>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.13.0</version>
+        <configuration>
+          <testIncludes>
+            <testInclude>com/transformersas/integration/profile/*.java</testInclude>
+            <testInclude>com/transformersas/integration/support/MarketplaceClient.java</testInclude>
+            <testInclude>com/transformersas/integration/config/BackendConfiguration.java</testInclude>
+          </testIncludes>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>3.5.2</version>
+        <configuration>
+          <workingDirectory>${project.basedir}/../..</workingDirectory>
+          <reportsDirectory>${project.basedir}/../../target/cu09/http-reports</reportsDirectory>
+          <includes><include>**/PersonalProfileExternalTest.java</include></includes>
+          <failIfNoTests>true</failIfNoTests>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>

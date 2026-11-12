@@ -217,3 +217,12 @@ credenciales productivas. El workflow dedicado se activa por push a
 `feature/cu08-integration-tests`; los workflows compartidos conservan sus PR y
 excluyen las ramas `feature/cu07-integration-tests` y
 `feature/cu08-integration-tests` de sus eventos de push.
+
+## CU-09: perfil y preferencias personales
+
+El [informe de pruebas externas CU-09](docs/pruebas-cu09.md) documenta los contratos,
+la cobertura HTTP y de navegador y el entorno desechable con MySQL y Mailpit.
+`bash scripts/cu09-run.sh` descarga y prueba exclusivamente la revisión
+`836c9d72377acc768380288260fc640532f47afd`, conserva evidencias y elimina sus recursos.
+El workflow `cu09-external.yml` se activa por push solo en
+`feature/cu09-integration-tests` y admite ejecución manual.
