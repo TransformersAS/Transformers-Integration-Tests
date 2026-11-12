@@ -2,7 +2,7 @@ name: CU02-CU03 E2E
 
 on:
   push:
-    branches: ['**']
+    branches: ['**', '!feature/cu07-integration-tests']
   pull_request:
   workflow_dispatch:
 

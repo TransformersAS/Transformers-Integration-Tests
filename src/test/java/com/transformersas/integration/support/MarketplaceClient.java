@@ -71,9 +71,31 @@ public final class MarketplaceClient {
         refreshCsrf();
     }
 
+    /** Sesión visitante con CSRF, para altas y verificación públicas. */
+    public static MarketplaceClient visitor() {
+        MarketplaceClient client = anonymous();
+        client.refreshCsrf();
+        return client;
+    }
+
+    /** Login observable, también para comprobar rechazos sin ocultar el estado HTTP. */
+    public Response authenticate(String email, String password) {
+        refreshCsrf();
+        Response response = withCsrf(request()).formParam("email", email)
+                .formParam("password", password).post("/api/auth/login");
+        if (response.statusCode() == 204) {
+            sessionCookie = response.getCookie("SESSION");
+            refreshCsrf();
+        }
+        return response;
+    }
+
+    public void renewCsrf() { refreshCsrf(); }
+
     private void refreshCsrf() {
-        Response response = given().baseUri(baseUrl).cookie("SESSION", sessionCookie).get("/api/auth/csrf");
+        Response response = request().get("/api/auth/csrf");
         response.then().statusCode(200);
+        if (response.getCookie("SESSION") != null) sessionCookie = response.getCookie("SESSION");
         csrfHeader = response.jsonPath().getString("headerName");
         csrfToken = response.jsonPath().getString("token");
     }

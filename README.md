@@ -182,3 +182,20 @@ una configuracion que produzca un porcentaje enganoso.
 
 Los casos de uso se agregaran uno por uno cuando exista su implementacion y su
 contrato verificable en el backend.
+
+## CU-07 externo
+
+La suite nueva requiere MySQL y Mailpit desechables y se activa expresamente con
+`CU07_ISOLATED=true`. Ejecutar `bash scripts/cu07-run.sh`; no usa `.env` ni bases
+persistentes. Requiere el repositorio hermano con CU-07, Java 21+, Docker y Chromium
+instalado. El detalle, los resultados efectivos, las limitaciones de regresión y la
+referencia inmutable de CI están en [docs/pruebas-cu07.md](docs/pruebas-cu07.md).
+El workflow separado `cu07-external.yml` preserva los pipelines del resto del equipo.
+
+La [revisión final de CU07](docs/revision-final-cu07.md) clasifica individualmente
+las 42 fallas originales, documenta las correcciones acotadas de sesiones e
+inventario y compara el contrato con el padre inmediato del commit CU07.
+Para ejecutar también las regresiones en un entorno desechable:
+`bash scripts/cu07-regression-run.sh`. Este comando conserva el fallo si cualquiera
+de las suites falla y ejecuta E2E aunque Maven falle. El workflow CU07 incluye
+ese job integral independiente, además de las suites dedicadas.
