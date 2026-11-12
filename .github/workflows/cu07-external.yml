@@ -1,0 +1,113 @@
+name: CU07 External Tests
+on:
+  push:
+    branches: [feature/cu07-integration-tests]
+  pull_request:
+    branches: ['**']
+    paths:
+      - 'src/test/**'
+      - 'tests/**'
+      - 'pom.xml'
+      - 'package*.json'
+      - 'playwright.config.ts'
+      - 'scripts/cu07-*'
+      - '.github/workflows/cu07-external.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  cu07:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      CU07_ISOLATED: 'true'
+      CU07_APP_DIR: ${{ github.workspace }}/app
+      CU07_PROJECT: cu07-external-${{ github.run_id }}-${{ github.run_attempt }}
+      BACKEND_BASE_URL: http://127.0.0.1:14300
+      FRONTEND_BASE_URL: http://127.0.0.1:14300
+      CU07_MAIL_URL: http://127.0.0.1:18025
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: TransformersAS/Transformers-AS
+          ref: f77dade0c6168861779b297430bc5e42d343b1ae
+          path: app
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Start disposable CU07 implementation
+        id: ready
+        run: |
+          test -f app/docs/CU07.md
+          bash scripts/cu07-compose.sh up -d --build --wait --wait-timeout 300
+      - name: HTTP suite
+        run: ./mvnw -Dtest=BuyerRegistrationIntegrationTest verify
+      - name: Browser suite
+        if: ${{ !cancelled() && steps.ready.outcome == 'success' }}
+        run: npx playwright test tests/e2e/buyer-registration.spec.ts
+      - name: Preserve reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cu07-external-${{ github.run_id }}
+          path: |
+            target/surefire-reports/
+            playwright-report/
+            test-results/
+          retention-days: 7
+      - name: Remove only disposable project
+        if: always()
+        run: bash scripts/cu07-compose.sh down --volumes --remove-orphans
+
+  cu07-regression:
+    name: All external regressions against CU07 (failures remain visible)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      CU07_APP_DIR: ${{ github.workspace }}/app
+      CU07_PROJECT: cu07-external-regression-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: TransformersAS/Transformers-AS
+          ref: f77dade0c6168861779b297430bc5e42d343b1ae
+          path: app
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Run full HTTP and browser suites, preserve failing exit codes
+        run: bash scripts/cu07-regression-run.sh
+      - name: Preserve full regression results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cu07-regression-${{ github.run_id }}
+          path: |
+            target/surefire-reports/
+            target/cu07-regression/
+            playwright-report/
+            test-results/
+          retention-days: 7
+      - name: Ensure disposable project is removed
+        if: always()
+        run: bash scripts/cu07-compose.sh down --volumes --remove-orphans

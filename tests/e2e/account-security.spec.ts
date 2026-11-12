@@ -37,7 +37,8 @@ test('cuenta cambia roles, revoca otra sesión y cierra su sesión principal', a
       });
       await expect(current).toHaveCount(1);
       // El identificador es leído de la sesión creada, nunca fijado ni inferido por orden/fecha.
-      secondSessionId = (await current.getByRole('definition').first().innerText()).trim();
+      secondSessionId = (await current.locator('dt').filter({ hasText: /^Identificador$/ })
+        .locator('xpath=following-sibling::dd[1]').innerText()).trim();
       expect(secondSessionId).not.toBe('');
     });
 
@@ -48,7 +49,8 @@ test('cuenta cambia roles, revoca otra sesión y cierra su sesión principal', a
       await expect.poll(() => sessions.count()).toBeGreaterThanOrEqual(2);
       const current = sessions.filter({ has: page.getByText('Esta es tu sesión actual', { exact: true }) });
       await expect(current).toHaveCount(1);
-      const primarySessionId = (await current.getByRole('definition').first().innerText()).trim();
+      const primarySessionId = (await current.locator('dt').filter({ hasText: /^Identificador$/ })
+        .locator('xpath=following-sibling::dd[1]').innerText()).trim();
       expect(primarySessionId).not.toBe(secondSessionId);
       const other = sessions.filter({ has: page.getByText(secondSessionId, { exact: true }) });
       await expect(other.getByText('Otra sesión', { exact: true })).toBeVisible();

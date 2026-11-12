@@ -13,7 +13,15 @@ import { buildXlsx, STOCK_HEADERS, XLSX_MIME } from '../helpers/xlsx';
 
 async function openInventory(page: import('@playwright/test').Page) {
   await selectActiveRole(page, 'VENDEDOR');
-  await page.getByRole('button', { name: 'Inventario', exact: true }).click();
+  // The older pinned workflow exposes a direct button; CU07's baseline groups it in the role menu.
+  const menu = page.getByRole('button', { name: 'Opciones de mi negocio', exact: true });
+  if (await menu.count()) {
+    await menu.click();
+    await page.getByRole('navigation', { name: 'Mi negocio', exact: true })
+      .getByRole('button', { name: 'Inventario', exact: true }).click();
+  } else {
+    await page.getByRole('button', { name: 'Inventario', exact: true }).click();
+  }
   await expect(page.locator('ion-title').filter({ hasText: 'Inventario' })).toBeVisible();
 }
 
