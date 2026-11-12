@@ -1,0 +1,56 @@
+name: CU11 External Tests
+on:
+  push:
+    branches: [feature/cu11-integration-tests]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  cu11:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      CU11_APP_DIR: ${{ github.workspace }}/app
+      CU11_PROJECT: cu11-external-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Checkout identified CU11 application
+        uses: actions/checkout@v4
+        with:
+          repository: TransformersAS/Transformers-AS
+          ref: dd72119d55b36684474d1b9d07874ec19cb7ce11
+          path: app
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Run only CU11 HTTP and browser suites
+        run: bash scripts/cu11-run.sh
+      - name: Preserve CU11 results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cu11-${{ github.run_id }}
+          path: |
+            target/cu11/results.json
+            target/cu11/provenance.json
+            target/cu11/cleanup.json
+            target/cu11/http-*/
+            target/cu11/e2e.json
+            target/cu11/e2e.log
+            target/cu11/startup.log
+            target/cu11/restart-*.log
+            target/cu11/cleanup.log
+            test-results/
+          retention-days: 14
+      - name: Ensure disposable CU11 project is removed
+        if: always()
+        run: bash scripts/cu11-compose.sh down --volumes --remove-orphans
