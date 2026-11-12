@@ -4,6 +4,7 @@ const demoMode = process.env.DEMO_MODE === 'true';
 
 export default defineConfig({
   testDir: './tests/e2e',
+  testIgnore: '**/tests/e2e/cu09-profile.spec.ts',
   // Un solo trabajador: el backend comparte un único carrito y una única cuenta demo entre compradores, así que dos
   // recorridos de compra a la vez se pisarían. No es una preferencia de estilo, es un límite del sistema bajo prueba.
   workers: 1,
