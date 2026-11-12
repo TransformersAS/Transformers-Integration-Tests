@@ -1,73 +1,23 @@
 import { expect, test } from '@playwright/test';
 import { loginAsBuyer } from '../helpers/account';
+import { cu11Order } from '../helpers/cu11-orders';
 
-test('CU-11: comprador compra una camiseta y cancela definitivamente su pedido', async ({ page }) => {
+test.skip(process.env.CU11_ISOLATED !== 'true', 'Requiere scripts/cu11-run.sh y su base desechable');
+
+test('CU-11: comprador consulta y cancela un pedido fixture, sin validar checkout', async ({ page }) => {
   test.setTimeout(90_000);
-  const productName = 'Camiseta demo local';
-
-  await test.step('Autenticarse con la cuenta local y seleccionar COMPRADOR', async () => {
+  const fixture = cu11Order();
+  const productName = fixture.productName;
+  const orderId = String(fixture.orderId);
+  const transaction = `Transacción: ${fixture.transactionId}`;
+  const paidTotal = String(fixture.total);
+  test.info().annotations.push({type:'fixture',description:'Pedido sembrado en MySQL desechable. No valida compra ni pago desde checkout.'});
+  await test.step('Autenticarse con la cuenta exclusiva CU11 y seleccionar COMPRADOR', async () => {
     await loginAsBuyer(page);
   });
 
-  const cart = page.getByRole('complementary', { name: 'Carrito de compras' });
-  await test.step('Agregar una unidad del producto provisionado al carrito', async () => {
-    const [initialCart] = await Promise.all([
-      page.waitForResponse(r => new URL(r.url()).pathname === '/api/cart'
-        && r.request().method() === 'GET'),
-      page.getByRole('button', { name: 'Abrir carrito', exact: true }).click(),
-    ]);
-    expect(initialCart.ok(), 'La consulta del carrito debe responder correctamente').toBeTruthy();
-    await initialCart.finished();
-    // No consumir ni borrar un carrito previo de la cuenta compartida.
-    await expect(cart.getByRole('button', { name: 'Eliminar', exact: true }),
-      'La cuenta E2E necesita un carrito vacío; no se eliminan datos previos').toHaveCount(0);
-    await expect(cart.getByRole('heading', { name: /vacío/i })).toBeVisible();
-    await cart.getByRole('button', { name: 'Cerrar carrito' }).click();
-
-    // Solo el catálogo: las recomendaciones (CU-02) muestran el mismo producto en otra tarjeta.
-    const product = page.getByRole('region', { name: 'Piezas que merecen vitrina' }).getByRole('article').filter({
-      has: page.getByRole('heading', { name: productName, exact: true }),
-    });
-    await expect(product, 'El perfil local debe provisionar Camiseta demo local').toBeVisible();
-    const [added] = await Promise.all([
-      page.waitForResponse(r => new URL(r.url()).pathname === '/api/cart/items'
-        && r.request().method() === 'POST'),
-      product.getByRole('button', { name: 'Agregar', exact: true }).click(),
-    ]);
-    expect(added.ok(), 'La UI debe poder agregar el producto').toBeTruthy();
-    await page.getByRole('button', { name: 'Abrir carrito', exact: true }).click();
-    await expect(cart.getByRole('heading', { name: productName, exact: true })).toBeVisible();
-    await expect(cart.getByText('1', { exact: true })).toBeVisible();
-    await expect(cart.getByRole('button', { name: 'Eliminar', exact: true })).toHaveCount(1);
-    await cart.getByRole('button', { name: 'Continuar compra', exact: true }).click();
-  });
-
-  let orderId: string;
-  let transaction: string;
-  let paidTotal: string;
-  const checkout = page.getByRole('complementary', { name: 'Finalizar compra' });
-  await test.step('Completar dirección, envío y pago desde los controles visibles', async () => {
-    await checkout.getByPlaceholder('Escribe tu dirección de entrega').fill('Calle 123 # 45-67, pruebas E2E');
-    await checkout.getByRole('radio', { name: /Estándar/ }).check();
-    await checkout.getByRole('button', { name: 'Calcular total', exact: true }).click();
-    await expect(checkout.getByRole('heading', { name: 'Resumen de compra' })).toBeVisible();
-    await checkout.getByRole('combobox').selectOption({ label: 'Tarjeta' });
-    await checkout.getByRole('button', { name: 'Confirmar compra', exact: true }).click();
-    await expect(checkout.getByRole('heading', { name: /¡Compra confirmada!/ })).toBeVisible();
-    await expect(checkout.getByText('Tu pedido fue creado correctamente.', { exact: true })).toBeVisible();
-    const orderNumber = checkout.getByText(/^\s*#\d+\s*$/);
-    await expect(orderNumber).toBeVisible();
-    orderId = (await orderNumber.innerText()).trim().slice(1);
-    transaction = (await checkout.getByText(/^\s*Transacción:/).innerText()).trim();
-    // Los importes usan moneda sin decimales en checkout y dos decimales en pedidos.
-    paidTotal = (await checkout.getByText('Total pagado', { exact: true })
-      .locator('..').locator('strong').innerText()).replace(/\D/g, '');
-    expect(Number(paidTotal)).toBeGreaterThan(0);
-    await checkout.getByRole('button', { name: 'Cerrar checkout' }).click();
-  });
-
   const orders = page.getByRole('dialog', { name: 'Mis pedidos' });
-  await test.step('Abrir el pedido recién creado y comprobar sus datos', async () => {
+  await test.step('Abrir el pedido fixture y comprobar sus datos históricos', async () => {
     await page.getByRole('button', { name: 'Mis pedidos', exact: true }).click();
     await orders.getByRole('button', { name: `Ver detalle del pedido ${orderId}`, exact: true }).click();
     await expect(orders.getByRole('heading', { name: `Pedido #${orderId}`, exact: true })).toBeVisible();
@@ -75,10 +25,11 @@ test('CU-11: comprador compra una camiseta y cancela definitivamente su pedido',
     const item = orders.getByRole('listitem').filter({ hasText: productName });
     await expect(item).toHaveCount(1);
     await expect(item.getByText(productName, { exact: true })).toBeVisible();
-    await expect(item.getByText(/^Cantidad: 1 · Precio unitario:/)).toBeVisible();
+    await expect(item.getByText(/^Cantidad: 2 · Precio unitario:/)).toBeVisible();
     await expect(item.getByText(/^Subtotal:\s*\d/)).toBeVisible();
     await expect(orders.getByText(transaction, { exact: true })).toBeVisible();
-    await expect(orders.getByText(/^Dirección de envío registrada #\d+/)).toBeVisible();
+    await expect(orders.getByRole('heading', {name:'Dirección de entrega registrada',exact:true})).toBeVisible();
+    await expect(orders.getByText('Dirección: Calle CU11 123',{exact:true})).toBeVisible();
     const total = orders.getByText(/^Total:.*Envío: STANDARD$/);
     await expect(total).toBeVisible();
     expect((await total.innerText()).split('·')[0].replace(/\D/g, ''))
@@ -110,7 +61,9 @@ test('CU-11: comprador compra una camiseta y cancela definitivamente su pedido',
       orderId: Number(orderId), status: 'CANCELLED', paymentStatus: 'REFUNDED', refund: { status: 'COMPLETED' },
     });
     await expect(orders.getByText('Cancelado', { exact: true })).toBeVisible();
-    await expect(orders.getByRole('status')).toHaveText('Pedido cancelado. Reembolso completado');
+    await expect(orders.getByRole('status').filter({hasText:'Pedido cancelado. Reembolso completado'})).toBeVisible();
+    await expect(orders.getByText('Resultado simulado',{exact:true})).toBeVisible();
+    await expect(orders.getByText('Este resultado pertenece al simulador y no acredita una devolución de dinero real.',{exact:true})).toBeVisible();
     await expect(orders.getByRole('button', { name: 'Cancelar pedido', exact: true })).toHaveCount(0);
     await expect(confirm).toHaveCount(0);
   });
@@ -124,8 +77,64 @@ test('CU-11: comprador compra una camiseta y cancela definitivamente su pedido',
       orders.getByRole('button', { name: `Ver detalle del pedido ${orderId}`, exact: true }).click(),
     ]);
     expect(detail.status()).toBe(200);
-    expect(await detail.json()).toMatchObject({ id: Number(orderId), status: 'CANCELLED' });
+    expect(await detail.json()).toMatchObject({ id: Number(orderId), status: 'CANCELLED', paymentStatus:'REFUNDED', refunds:[{status:'SIMULATED'}] });
     await expect(orders.getByText('Cancelado', { exact: true })).toBeVisible();
     await expect(orders.getByRole('button', { name: 'Cancelar pedido', exact: true })).toHaveCount(0);
   });
+});
+
+test('CU-11: cancelación de fixture MP permanece cancelada con devolución no completada',async({page})=>{
+  const order=cu11Order({mp:true});await loginAsBuyer(page);
+  await page.getByRole('button',{name:'Mis pedidos',exact:true}).click();
+  const panel=page.getByRole('dialog',{name:'Mis pedidos',exact:true});
+  await panel.getByRole('button',{name:`Ver detalle del pedido ${order.orderId}`,exact:true}).click();
+  await panel.getByRole('button',{name:'Cancelar pedido',exact:true}).click();
+  await expect(panel.getByRole('note',{name:'Consecuencias de cancelar'})).toContainText('La devolución del dinero es una operación separada');
+  await panel.getByRole('combobox',{name:'Motivo de cancelación'}).selectOption('CHANGED_MIND');
+  const response=page.waitForResponse(r=>new URL(r.url()).pathname===`/api/orders/${order.orderId}/cancellation` && r.request().method()==='POST');
+  await panel.getByRole('button',{name:'Confirmar cancelación',exact:true}).click();
+  const cancelled=await response;expect(cancelled.status()).toBe(200);
+  expect(await cancelled.json()).toMatchObject({status:'CANCELLED',paymentStatus:'REFUND_PENDING',refund:{status:'FAILED'}});
+  await expect(panel.getByText('Cancelado',{exact:true})).toBeVisible();
+  await expect(panel.getByText('No se pudo completar',{exact:true})).toBeVisible();
+  await expect(panel.getByText('Resultado simulado',{exact:true})).toHaveCount(0);
+  await expect(panel.getByRole('button',{name:'Cancelar pedido',exact:true})).toHaveCount(0);
+  await page.reload();await page.getByRole('button',{name:'Mis pedidos',exact:true}).click();
+  await panel.getByRole('button',{name:`Ver detalle del pedido ${order.orderId}`,exact:true}).click();
+  await expect(panel.getByText('No se pudo completar',{exact:true})).toBeVisible();
+});
+
+test('CU-11: pedido entregado no ofrece cancelación ni cambia por recarga',async({page})=>{
+  const order=cu11Order({status:'DELIVERED'});await loginAsBuyer(page);
+  await page.getByRole('button',{name:'Mis pedidos',exact:true}).click();const panel=page.getByRole('dialog',{name:'Mis pedidos',exact:true});
+  await panel.getByRole('button',{name:`Ver detalle del pedido ${order.orderId}`,exact:true}).click();
+  await expect(panel.getByText('Entregado',{exact:true})).toBeVisible();
+  await expect(panel.getByRole('button',{name:'Cancelar pedido',exact:true})).toHaveCount(0);
+  await expect(panel.getByRole('status').filter({hasText:'El pedido fue entregado y ya no puede cancelarse'})).toBeVisible();
+  await page.reload();await page.getByRole('button',{name:'Mis pedidos',exact:true}).click();
+  await panel.getByRole('button',{name:`Ver detalle del pedido ${order.orderId}`,exact:true}).click();
+  await expect(panel.getByText('Entregado',{exact:true})).toBeVisible();
+  await expect(panel.getByRole('button',{name:'Cancelar pedido',exact:true})).toHaveCount(0);
+});
+
+test('CU-11: filtra pedidos propios por fecha y estado y consulta comprobante PDF real',async({page})=>{
+  const order=cu11Order({createdAt:'2025-03-10T12:00:00'});
+  cu11Order({status:'DELIVERED',createdAt:'2025-03-11T12:00:00'});
+  await loginAsBuyer(page);await page.getByRole('button',{name:'Mis pedidos',exact:true}).click();
+  const panel=page.getByRole('dialog',{name:'Mis pedidos',exact:true});
+  await panel.getByLabel('Fecha inicial',{exact:true}).fill('2025-03-10');await panel.getByLabel('Fecha final',{exact:true}).fill('2025-03-10');
+  await panel.getByRole('combobox',{name:'Estado del pedido'}).selectOption('CONFIRMED');
+  const filtered=page.waitForResponse(r=>{const u=new URL(r.url());return u.pathname==='/api/orders' && u.searchParams.get('from')==='2025-03-10' && u.searchParams.get('status')==='CONFIRMED';});
+  await panel.getByRole('button',{name:'Aplicar filtros',exact:true}).click();
+  expect((await filtered).status()).toBe(200);
+  await expect(panel.getByRole('button',{name:/^Ver detalle del pedido/})).toHaveCount(1);
+  await panel.getByRole('button',{name:`Ver detalle del pedido ${order.orderId}`,exact:true}).click();
+  const pdfResponse=page.waitForResponse(r=>new URL(r.url()).pathname===`/api/orders/${order.orderId}/receipt`);
+  await panel.getByRole('button',{name:'Ver comprobante',exact:true}).click();const pdf=await pdfResponse;
+  expect(pdf.status()).toBe(200);expect(pdf.headers()['content-type']).toContain('application/pdf');
+  expect((await pdf.body()).subarray(0,5).toString()).toBe('%PDF-');
+  await expect(panel.getByTitle('PDF del comprobante de compra')).toBeVisible();
+  await panel.getByRole('button',{name:'Cerrar comprobante',exact:true}).click();
+  const download=page.waitForEvent('download');await panel.getByRole('button',{name:'Descargar comprobante',exact:true}).click();
+  expect((await download).suggestedFilename()).toContain(`comprobante-pedido-${order.orderId}`);
 });

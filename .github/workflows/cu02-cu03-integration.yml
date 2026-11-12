@@ -2,7 +2,7 @@ name: CU02-CU03 Backend Integration
 
 on:
   push:
-    branches: ['**', '!feature/cu07-integration-tests', '!feature/cu08-integration-tests']
+    branches: ['feature/cu02-*', 'feature/cu03-*']
   pull_request:
   workflow_dispatch:
 
