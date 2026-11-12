@@ -71,7 +71,7 @@ public final class MarketplaceClient {
         refreshCsrf();
     }
 
-    /** Sesión visitante con CSRF, para altas y verificación públicas. */
+    /** Sesión visitante con CSRF para registro, autenticación, recuperación y verificación públicos. */
     public static MarketplaceClient visitor() {
         MarketplaceClient client = anonymous();
         client.refreshCsrf();
@@ -84,13 +84,18 @@ public final class MarketplaceClient {
         Response response = withCsrf(request()).formParam("email", email)
                 .formParam("password", password).post("/api/auth/login");
         if (response.statusCode() == 204) {
-            sessionCookie = response.getCookie("SESSION");
+            if (response.getCookie("SESSION") != null) sessionCookie = response.getCookie("SESSION");
             refreshCsrf();
         }
         return response;
     }
 
     public void renewCsrf() { refreshCsrf(); }
+
+    /** Negative security checks retain the real session while deliberately omitting CSRF. */
+    public Response withoutCsrf(String method, String path, String json) {
+        return request().contentType(ContentType.JSON).body(json).request(method, path);
+    }
 
     private void refreshCsrf() {
         Response response = request().get("/api/auth/csrf");

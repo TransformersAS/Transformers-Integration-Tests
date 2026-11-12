@@ -199,3 +199,21 @@ Para ejecutar también las regresiones en un entorno desechable:
 `bash scripts/cu07-regression-run.sh`. Este comando conserva el fallo si cualquiera
 de las suites falla y ejecuta E2E aunque Maven falle. El workflow CU07 incluye
 ese job integral independiente, además de las suites dedicadas.
+
+## CU-08: acceso y seguridad externos
+
+El [informe CU-08](docs/pruebas-cu08.md) describe los contratos verificados,
+la referencia inmutable de la aplicación, el proxy con bloqueo de intentos activo,
+la matriz de cobertura y las evidencias. Con las fuentes de esa revisión disponibles:
+
+```bash
+CU08_APP_DIR=/ruta/Transformers-AS-del-SHA bash scripts/cu08-run.sh
+```
+
+El runner prepara MySQL y Mailpit desechables y ejecuta únicamente
+`AccountSecurityIntegrationTest`, `account-security.spec.ts` y `cu08-access.spec.ts`.
+Devuelve error si HTTP o E2E falla y limpia su propio proyecto Compose. No requiere
+credenciales productivas. El workflow dedicado se activa por push a
+`feature/cu08-integration-tests`; los workflows compartidos conservan sus PR y
+excluyen las ramas `feature/cu07-integration-tests` y
+`feature/cu08-integration-tests` de sus eventos de push.

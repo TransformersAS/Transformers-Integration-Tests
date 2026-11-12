@@ -1,0 +1,50 @@
+name: CU08 External Tests
+on:
+  push:
+    branches: [feature/cu08-integration-tests]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  cu08:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      CU08_APP_DIR: ${{ github.workspace }}/app
+      CU08_PROJECT: cu08-external-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Checkout identified CU08 implementation
+        uses: actions/checkout@v4
+        with:
+          repository: TransformersAS/Transformers-AS
+          ref: fd5f62493f4936a44e7b122be1c8841a12a19572
+          path: app
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Run only CU08 HTTP and browser tests
+        run: bash scripts/cu08-run.sh
+      - name: Preserve CU08 evidence even on test failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cu08-${{ github.run_id }}
+          path: |
+            target/surefire-reports/
+            target/cu08/
+            playwright-report/
+            test-results/
+          retention-days: 14
+      - name: Ensure disposable project is removed
+        if: always()
+        run: bash scripts/cu08-compose.sh down --volumes --remove-orphans
