@@ -1,0 +1,59 @@
+name: Pruebas externas CU09
+on:
+  push:
+    branches: [feature/cu09-integration-tests]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  cu09:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      CU09_PROJECT: cu09-external-${{ github.run_id }}-${{ github.run_attempt }}
+      GH_TOKEN: ${{ secrets.CU09_SOURCE_TOKEN || github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Preparar validadores aislados
+        run: |
+          npm install --prefix target/cu09/tools --no-save typescript@5.9.3 @types/node@22 yaml@2
+          GOBIN="$PWD/target/cu09/bin" go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
+      - name: Validar sintaxis y alcance
+        run: bash scripts/cu09-validate.sh
+      - name: Compilar pruebas externas
+        run: ./mvnw -f backend-tests/cu09/pom.xml -DskipTests test-compile
+      - name: Ejecutar exclusivamente HTTP y navegador CU09 sobre 836c9d72377acc768380288260fc640532f47afd
+        run: bash scripts/cu09-run.sh
+      - name: Limpiar incluso si hay errores
+        if: always()
+        run: |
+          if test -f target/cu09/app/compose.e2e.yaml; then
+            bash scripts/cu09-compose.sh down --volumes --remove-orphans
+          fi
+      - name: Publicar evidencias CU09
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cu09-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            target/cu09/*.log
+            target/cu09/*.json
+            target/cu09/*.sha256
+            target/cu09/remaining-*.txt
+            target/cu09/http-reports/
+            target/cu09/browser-results/
+            target/cu09/browser-report/
+          retention-days: 14
