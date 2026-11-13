@@ -226,3 +226,5 @@ la cobertura HTTP y de navegador y el entorno desechable con MySQL y Mailpit.
 `836c9d72377acc768380288260fc640532f47afd`, conserva evidencias y elimina sus recursos.
 El workflow `cu09-external.yml` se activa por push solo en
 `feature/cu09-integration-tests` y admite ejecución manual.
+
+Las [pruebas externas aisladas de CU-10](docs/pruebas-cu10.md) evalúan mensajería sobre una revisión inmutable con su propio runner HTTP, navegador y entorno desechable.

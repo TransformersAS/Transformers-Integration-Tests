@@ -1,0 +1,58 @@
+name: CU10 External Tests
+on:
+  push:
+    branches: [feature/cu10-integration-tests]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  cu10:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      CU10_PROJECT: cu10-external-${{ github.run_id }}-${{ github.run_attempt }}
+      GH_TOKEN: ${{ secrets.CU10_SOURCE_TOKEN || github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm ci --prefix tools/cu10 --ignore-scripts
+      - name: Validar aislamiento y sintaxis
+        run: bash scripts/cu10-validate.sh
+      - name: Ejecutar HTTP y navegador sobre la revisión inmutable
+        run: bash scripts/cu10-run.sh
+      - name: Limpieza de respaldo y verificación
+        if: always()
+        run: bash scripts/cu10-cleanup.sh
+      - name: Publicar evidencia incluso ante fallo
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cu10-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            target/cu10/cu10-external-*/provenance.json
+            target/cu10/cu10-external-*/*.sha256
+            target/cu10/cu10-external-*/*.log
+            target/cu10/cu10-external-*/compose.yaml
+            target/cu10/cu10-external-*/status.json
+            target/cu10/cu10-external-*/summary.json
+            target/cu10/cu10-external-*/exit-code.txt
+            target/cu10/cu10-external-*/remaining-*.txt
+            target/cu10/cu10-external-*/workflow-remaining-*.txt
+            target/cu10/cu10-external-*/http-reports/
+            target/cu10/cu10-external-*/browser-results/
+            target/cu10/cu10-external-*/browser-report/
+            target/cu10/cu10-external-*/e2e-results.json
+            target/cu10/validation/
+          retention-days: 14
