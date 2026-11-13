@@ -142,3 +142,20 @@ Todos los grupos siguientes aprobaron en la ejecución final; los números corre
 | 27 | Bandeja HTTP con conversationId y estado durable de notificación |
 | 28–29 | Reportes recibidos/propios/ajenos, evidencia SOPORTE y ocultación sin destruir bytes |
 | 30 | `falloPersistenciaAtomico`, `falloExternoNoRevierteNiDuplica` y fallo SQL visible en E2E |
+
+## Corrección de instalación de herramientas — ejecución #1
+
+La [ejecución 43340473069](https://github.com/TransformersAS/Transformers-Integration-Tests/actions/runs/43340473069) evaluó la revisión del arnés `f5367fcc7f9db7987c189a155559a02f8242f351`. La consulta del árbol publicado mediante API de GitHub confirmó que faltaban `tools/cu10/package.json`, `tools/cu10/package-lock.json` y `tools/cu10/tsconfig.json`, aunque los tres existían localmente. La instalación no podía funcionar sin publicar esos archivos. No se realizaron operaciones Git.
+
+Se prepararon el manifiesto y tsconfig con formato legible, manteniendo TypeScript 5.9.3, YAML 2.8.1 y tipos Node 22.19.1. El lockfile se regeneró mediante `npm install --prefix tools/cu10 --package-lock-only --ignore-scripts` y quedó sincronizado. El tsconfig conserva comprobación estricta sin emitir archivos para `playwright.cu10.config.ts` y `tests/cu10-e2e/conversations.spec.ts`.
+
+El validador ahora identifica explícitamente cualquiera de esos tres archivos ausentes. La comprobación de aislamiento usa una rama que devuelve error si el descubrimiento general incluye CU10, evitando depender de la interacción entre `!` y `set -e`. Se mantienen las validaciones de Bash, Python, Maven, TypeScript, YAML y descubrimiento Playwright. El workflow conserva su paso `npm ci --prefix tools/cu10 --ignore-scripts`.
+
+Verificación local del 12 de noviembre de 2026:
+
+- Instalación con el comando exacto desde una carpeta nueva sin `node_modules`: código 0; cuatro paquetes instalados, manifiesto y lockfile sin cambios. Evidencia local ignorada: `target/cu10/fix-herramientas-nmd_5c6n/`.
+- Instalación en `tools/cu10`: código 0.
+- `bash scripts/cu10-validate.sh`, con Java 21: código 0. Maven `BUILD SUCCESS`, una clase externa compilada; TypeScript sin errores; ambos YAML válidos; dos E2E CU10 descubiertos y ninguno CU10 en el descubrimiento general. Evidencia: `target/cu10/validation/20261113005903-79398/`.
+- Auditoría adicional contra el árbol publicado: scripts CU10, fuentes Java, pruebas y recursos del navegador, configuraciones Playwright, manifiestos npm raíz y wrapper Maven presentes; no se encontraron otros auxiliares faltantes dentro de esos directorios.
+
+Archivos para incluir en el próximo commit: los tres JSON de `tools/cu10`, `scripts/cu10-validate.sh` y este documento. No incluir `node_modules`, `target`, logs ni evidencias. El workflow y el SHA productivo `3c12266316c86aa97097f0317507dd935af99286` permanecen intactos. Esta corrección valida instalación y arnés; no vuelve a ejecutar HTTP/E2E ni dispara GitHub Actions. La instalación y las validaciones locales utilizan Node 24.8.0; CI mantiene Node 22.

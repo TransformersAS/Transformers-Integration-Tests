@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "typeRoots": [
+      "./node_modules/@types"
+    ]
+  },
+  "files": [
+    "../../playwright.cu10.config.ts",
+    "../../tests/cu10-e2e/conversations.spec.ts"
+  ]
+}
