@@ -1,5 +1,10 @@
 # CU-02 y CU-03 — pruebas de integración
 
+La suite se amplió a CU01–CU06. Consulta la
+[guía actualizada](pruebas-cu01-cu06.md) para ejecutar las seis suites y revisar
+su alcance. El workflow conserva el nombre de archivo y ahora se muestra como
+`CU01-CU06 Backend Integration`.
+
 Estas pruebas **viven en este repositorio separado**, pero durante GitHub Actions se copian temporalmente al `src/test/java` del backend real para poder usar el contexto de Spring, Testcontainers MySQL y JaCoCo del Marketplace.
 
 No se copia código de producción a este repositorio.

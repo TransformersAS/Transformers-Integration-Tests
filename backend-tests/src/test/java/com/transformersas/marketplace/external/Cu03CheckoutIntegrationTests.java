@@ -28,7 +28,7 @@ class Cu03CheckoutIntegrationTests extends AbstractIntegrationTest {
     void cartCrudAndCheckoutPreviewWorkThroughHttp() throws Exception {
         Session buyer = sessionWithRole("cu03-cart@example.com", "COMPRADOR");
         long productId = seedProduct(1, "Mouse Pro", 10, "100000.00");
-        long addressId = seedAddress();
+        long addressId = seedAddress(buyer);
 
         String added = perform(buyer, post("/api/cart/items")
                 .contentType(APPLICATION_JSON)
@@ -84,7 +84,7 @@ class Cu03CheckoutIntegrationTests extends AbstractIntegrationTest {
         Session buyer = sessionWithRole("cu03-approved@example.com", "COMPRADOR");
         long userId = accountIdOf("cu03-approved@example.com");
         long productId = seedProduct(1, "Teclado", 10, "100000.00");
-        long addressId = seedAddress();
+        long addressId = seedAddress(buyer);
 
         addToCart(buyer, productId, 2);
         List<Long> reservationIds = reserveCart(buyer);
@@ -111,7 +111,7 @@ class Cu03CheckoutIntegrationTests extends AbstractIntegrationTest {
     void rejectedPaymentReleasesReservationsWithoutOrderOrStockChange() throws Exception {
         Session buyer = sessionWithRole("cu03-rejected@example.com", "COMPRADOR");
         long productId = seedProduct(1, "Monitor", 5, "750000.00");
-        long addressId = seedAddress();
+        long addressId = seedAddress(buyer);
 
         addToCart(buyer, productId, 1);
         List<Long> reservationIds = reserveCart(buyer);
@@ -134,7 +134,7 @@ class Cu03CheckoutIntegrationTests extends AbstractIntegrationTest {
     void pendingPaymentKeepsReservationActiveAndDoesNotCreateOrder() throws Exception {
         Session buyer = sessionWithRole("cu03-pending@example.com", "COMPRADOR");
         long productId = seedProduct(1, "Webcam", 7, "160000.00");
-        long addressId = seedAddress();
+        long addressId = seedAddress(buyer);
 
         addToCart(buyer, productId, 1);
         List<Long> reservationIds = reserveCart(buyer);
@@ -158,7 +158,7 @@ class Cu03CheckoutIntegrationTests extends AbstractIntegrationTest {
         seedStore(2, "Tienda secundaria");
         long first = seedProduct(1, "Producto tienda 1", 10, "100000.00");
         long second = seedProduct(2, "Producto tienda 2", 10, "50000.00");
-        long addressId = seedAddress();
+        long addressId = seedAddress(buyer);
 
         addToCart(buyer, first, 1);
         addToCart(buyer, second, 1);

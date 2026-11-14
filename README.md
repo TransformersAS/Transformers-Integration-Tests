@@ -23,6 +23,10 @@ el sistema desplegado a traves de sus interfaces observables.
 
 ## Requisitos
 
+Para las suites de **CU01 a CU06**, consultar
+[la guía de ejecución y alcance](docs/pruebas-cu01-cu06.md). Estas suites están
+en `backend-tests/` y tienen un workflow propio; no las ejecuta el Maven de la raíz.
+
 - Java 21.
 - Docker con Compose v2 para levantar el backend local.
 - No hace falta instalar Maven: se usa Maven Wrapper.

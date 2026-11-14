@@ -1,8 +1,8 @@
-name: CU02-CU03 Backend Integration
+name: CU01-CU06 Backend Integration
 
 on:
   push:
-    branches: ['feature/cu02-*', 'feature/cu03-*']
+    branches: ['feature/cu01-*', 'feature/cu02-*', 'feature/cu03-*', 'feature/cu04-*', 'feature/cu05-*', 'feature/cu06-*', 'test/cu01-cu06-*']
   pull_request:
   workflow_dispatch:
 
@@ -10,8 +10,8 @@ permissions:
   contents: read
 
 jobs:
-  cu02-cu03-integration:
-    name: CU-02 and CU-03 integration + JaCoCo
+  cu01-cu06-integration:
+    name: CU-01 through CU-06 integration + JaCoCo
     runs-on: ubuntu-24.04
     timeout-minutes: 25
 
@@ -29,7 +29,7 @@ jobs:
           path: app
           persist-credentials: false
 
-      - name: Copy CU-02 and CU-03 tests into the application test source set
+      - name: Copy CU-01 through CU-06 tests into the application test source set
         shell: bash
         run: |
           mkdir -p app/backend/demo/src/test/java/com/transformersas/marketplace/external
@@ -47,18 +47,18 @@ jobs:
       - name: Check Docker for Testcontainers
         run: docker info
 
-      - name: Run CU-02 and CU-03 integration tests
+      - name: Run CU-01 through CU-06 integration tests
         working-directory: app/backend/demo
         run: |
           ./mvnw clean test \
-            -Dtest=Cu02RecommendationIntegrationTests,Cu03CheckoutIntegrationTests
+            -Dtest=Cu01CatalogIntegrationTests,Cu02RecommendationIntegrationTests,Cu03CheckoutIntegrationTests,Cu04ProductTrackingIntegrationTests,Cu05ProductReviewsIntegrationTests,Cu06DeliveryAddressIntegrationTests
           ./mvnw jacoco:report
 
       - name: Upload integration reports and JaCoCo evidence
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
-          name: cu02-cu03-integration-${{ github.sha }}
+          name: cu01-cu06-integration-${{ github.sha }}
           path: |
             app/backend/demo/target/surefire-reports/
             app/backend/demo/target/site/jacoco/
