@@ -1,52 +1,42 @@
 # CU04 — Dar seguimiento a productos de interés
 
-## Archivo de pruebas
+## Archivos de pruebas
 
-[Cu04ProductTrackingIntegrationTests.java](../backend-tests/src/test/java/com/transformersas/marketplace/external/Cu04ProductTrackingIntegrationTests.java)
-contiene **3 pruebas**. Utiliza Spring Boot, MockMvc, sesiones reales, CSRF,
-Flyway y MySQL Testcontainers mediante el helper del backend. Las respuestas del
-backend no se sustituyen por mocks.
+- [Cu04AlertRequirementsIntegrationTests.java](../backend-tests/src/test/java/com/transformersas/marketplace/external/Cu04AlertRequirementsIntegrationTests.java) — paquete `com.transformersas.marketplace.favorites`.
+- [Cu04ProductTrackingIntegrationTests.java](../backend-tests/src/test/java/com/transformersas/marketplace/external/Cu04ProductTrackingIntegrationTests.java) — paquete `com.transformersas.marketplace.external`.
 
-## Qué comprueba
+Las suites base usan MockMvc y MySQL Testcontainers. Las ampliadas combinan HTTP interno y servicios reales, con persistencia y transacciones reales. Los paquetes se conservan para acceder a los colaboradores de cada módulo.
 
-- Guardar favoritos sin duplicados, consultar y eliminar; aislar los favoritos entre cuentas.
-- Crear alerta de precio, rechazar duplicado, pausar, reactivar y eliminar; impedir eliminación ajena.
-- Rechazar acceso anónimo y producto inexistente.
+## Qué comprueban
 
-## Cómo ejecutar solamente CU04
+Favoritos actualizados y privados, alertas de precio/disponibilidad de la variante exacta, edición y estados, condición ya satisfecha, ausencia de avisos para alertas inactivas, notificación interna, fallo externo, rollback y evaluadores concurrentes sin duplicados.
 
-Requiere Java 21 y Docker Desktop con contenedores Linux. Primero prepara la
-copia temporal del backend con los pasos de la [guía compartida](pruebas-cu01-cu06.md#ejecución-local-en-windows).
-Desde la raíz de este repositorio, copia la versión actual de esta suite y ejecútala:
+Los requisitos y métodos exactos están en la [matriz de trazabilidad](trazabilidad-cu01-cu06.md#cu04).
+
+## Ejecución individual
+
+Desde PowerShell, en la raíz del repositorio, con Java 21 y Docker Desktop iniciado:
 
 ```powershell
-$env:JAVA_HOME = 'C:\Program Files\Eclipse Adoptium\jdk-21.0.9.10-hotspot' # Ajustar a tu JDK 21.
-Copy-Item backend-tests/src/test/java/com/transformersas/marketplace/external/Cu04ProductTrackingIntegrationTests.java target/cu01-cu06-validation/app/src/test/java/com/transformersas/marketplace/external/
-Push-Location target/cu01-cu06-validation/app
-try {
-    .\mvnw.cmd test '-Dtest=Cu04ProductTrackingIntegrationTests'
-} finally {
-    Pop-Location
-}
+.\scripts\test-cu01-cu06.ps1 -Case 4
 ```
 
-El resultado esperado es `Tests run: 3, Failures: 0, Errors: 0, Skipped: 0`
-y `BUILD SUCCESS`.
+El script actualiza la copia temporal de la aplicación y los tests, ejecuta **todas las suites de este CU** y genera JaCoCo. Para otro backend local o JDK:
+
+```powershell
+.\scripts\test-cu01-cu06.ps1 -Case 4 -BackendPath '../Transformers-AS/backend/demo' -JavaHome 'C:\Program Files\Eclipse Adoptium\jdk-21.0.9.10-hotspot'
+```
+
+No se necesita iniciar manualmente el frontend, backend ni MySQL. El código de salida es distinto de cero si falla una prueba; el reporte de cobertura no convierte un fallo en aprobación.
 
 ## Evidencia
 
-El reporte de esta suite queda en
-`target/cu01-cu06-validation/app/target/surefire-reports/com.transformersas.marketplace.external.Cu04ProductTrackingIntegrationTests.txt`.
+Resultados en `target/cu01-cu06-validation/app/target/surefire-reports/`, un TXT y XML por suite. El nombre del reporte incluye el paquete de la clase, que puede ser distinto de `external`. Consulta el [resultado de la validación ampliada](validacion-cu01-cu06.md).
 
-En la ejecución conjunta del 14 de noviembre de 2026 esta suite aprobó sus
-**3 pruebas**, sin fallos, errores ni omitidas, contra el backend
-`263bd0eaa5ddd585ebe3c398b1ec9f6fb004cf67`, Java 21 y MySQL 8.4.11.
-Es evidencia local; no representa una ejecución de GitHub Actions.
+La ejecución anterior de 23 pruebas era la suite inicial; no demuestra por sí sola que la ampliación está aprobada.
 
 ## Alcance
 
-No fuerza el disparo asíncrono de notificaciones ni verifica proveedores externos o alertas de disponibilidad.
+Se invoca explícitamente la evaluación real de alertas; no se espera el scheduler. Se usa el gateway externo simulado. Mover a carrito, comparar y compartir desde la interfaz siguen pendientes.
 
-Los resultados demuestran los escenarios descritos, sin implicar cobertura total
-del caso de uso. Consulta la [guía compartida](pruebas-cu01-cu06.md) para el workflow
-y el reporte JaCoCo de la suite conjunta.
+Consulta las [brechas documentadas](brechas-cu01-cu06.md) antes de afirmar cumplimiento total.

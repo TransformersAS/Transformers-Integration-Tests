@@ -51,8 +51,12 @@ jobs:
         working-directory: app/backend/demo
         run: |
           ./mvnw clean test \
-            -Dtest=Cu01CatalogIntegrationTests,Cu02RecommendationIntegrationTests,Cu03CheckoutIntegrationTests,Cu04ProductTrackingIntegrationTests,Cu05ProductReviewsIntegrationTests,Cu06DeliveryAddressIntegrationTests
-          ./mvnw jacoco:report
+            -Dtest=Cu01*IntegrationTests,Cu02*IntegrationTests,Cu03*IntegrationTests,Cu04*IntegrationTests,Cu05*IntegrationTests,Cu06*IntegrationTests
+
+      - name: Generate JaCoCo report including failed acceptance contracts
+        if: ${{ !cancelled() }}
+        working-directory: app/backend/demo
+        run: ./mvnw jacoco:report
 
       - name: Upload integration reports and JaCoCo evidence
         if: ${{ always() }}

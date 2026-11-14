@@ -1,55 +1,43 @@
 # CU03 — Preparar el carrito y completar una compra
 
-## Archivo de pruebas
+## Archivos de pruebas
 
-[Cu03CheckoutIntegrationTests.java](../backend-tests/src/test/java/com/transformersas/marketplace/external/Cu03CheckoutIntegrationTests.java)
-contiene **6 pruebas**. Utiliza Spring Boot, MockMvc, sesiones reales, CSRF,
-Flyway y MySQL Testcontainers mediante el helper del backend. Las respuestas del
-backend no se sustituyen por mocks.
+- [Cu03CartRequirementsIntegrationTests.java](../backend-tests/src/test/java/com/transformersas/marketplace/external/Cu03CartRequirementsIntegrationTests.java) — paquete `com.transformersas.marketplace.external`.
+- [Cu03CheckoutIntegrationTests.java](../backend-tests/src/test/java/com/transformersas/marketplace/external/Cu03CheckoutIntegrationTests.java) — paquete `com.transformersas.marketplace.external`.
+- [Cu03GatewayRequirementsIntegrationTests.java](../backend-tests/src/test/java/com/transformersas/marketplace/external/Cu03GatewayRequirementsIntegrationTests.java) — paquete `com.transformersas.marketplace.payments.infrastructure.mercadopago`.
 
-## Qué comprueba
+Las suites base usan MockMvc y MySQL Testcontainers. Las ampliadas combinan HTTP interno y servicios reales, con persistencia y transacciones reales. Los paquetes se conservan para acceder a los colaboradores de cada módulo.
 
-- Agregar, actualizar, consultar y eliminar productos; calcular checkout con cupón.
-- Pago aprobado: crear pedido, descontar stock, vaciar carrito y registrar PURCHASE.
-- Pago rechazado: liberar reservas sin pedido ni cambio de stock.
-- Pago pendiente: conservar reservas activas sin crear pedido.
-- Rechazar carrito multitienda antes del pago.
-- Rechazar cantidad superior al stock sin crear reservas ni pedidos.
+## Qué comprueban
 
-## Cómo ejecutar solamente CU03
+Carrito y cantidades, persistencia entre sesiones, precio vigente, dirección propia, cupón, exclusión de productos inactivos, competencia por stock, vencimiento, pago aprobado/rechazado/pendiente, snapshots, webhook firmado, idempotencia, consulta de pago fallida y reintento, cancelación de checkout y comprobante PDF privado.
 
-Requiere Java 21 y Docker Desktop con contenedores Linux. Primero prepara la
-copia temporal del backend con los pasos de la [guía compartida](pruebas-cu01-cu06.md#ejecución-local-en-windows).
-Desde la raíz de este repositorio, copia la versión actual de esta suite y ejecútala:
+Los requisitos y métodos exactos están en la [matriz de trazabilidad](trazabilidad-cu01-cu06.md#cu03).
+
+## Ejecución individual
+
+Desde PowerShell, en la raíz del repositorio, con Java 21 y Docker Desktop iniciado:
 
 ```powershell
-$env:JAVA_HOME = 'C:\Program Files\Eclipse Adoptium\jdk-21.0.9.10-hotspot' # Ajustar a tu JDK 21.
-Copy-Item backend-tests/src/test/java/com/transformersas/marketplace/external/Cu03CheckoutIntegrationTests.java target/cu01-cu06-validation/app/src/test/java/com/transformersas/marketplace/external/
-Push-Location target/cu01-cu06-validation/app
-try {
-    .\mvnw.cmd test '-Dtest=Cu03CheckoutIntegrationTests'
-} finally {
-    Pop-Location
-}
+.\scripts\test-cu01-cu06.ps1 -Case 3
 ```
 
-El resultado esperado es `Tests run: 6, Failures: 0, Errors: 0, Skipped: 0`
-y `BUILD SUCCESS`.
+El script actualiza la copia temporal de la aplicación y los tests, ejecuta **todas las suites de este CU** y genera JaCoCo. Para otro backend local o JDK:
+
+```powershell
+.\scripts\test-cu01-cu06.ps1 -Case 3 -BackendPath '../Transformers-AS/backend/demo' -JavaHome 'C:\Program Files\Eclipse Adoptium\jdk-21.0.9.10-hotspot'
+```
+
+No se necesita iniciar manualmente el frontend, backend ni MySQL. El código de salida es distinto de cero si falla una prueba; el reporte de cobertura no convierte un fallo en aprobación.
 
 ## Evidencia
 
-El reporte de esta suite queda en
-`target/cu01-cu06-validation/app/target/surefire-reports/com.transformersas.marketplace.external.Cu03CheckoutIntegrationTests.txt`.
+Resultados en `target/cu01-cu06-validation/app/target/surefire-reports/`, un TXT y XML por suite. El nombre del reporte incluye el paquete de la clase, que puede ser distinto de `external`. Consulta el [resultado de la validación ampliada](validacion-cu01-cu06.md).
 
-En la ejecución conjunta del 14 de noviembre de 2026 esta suite aprobó sus
-**6 pruebas**, sin fallos, errores ni omitidas, contra el backend
-`263bd0eaa5ddd585ebe3c398b1ec9f6fb004cf67`, Java 21 y MySQL 8.4.11.
-Es evidencia local; no representa una ejecución de GitHub Actions.
+La ejecución anterior de 23 pruebas era la suite inicial; no demuestra por sí sola que la ampliación está aprobada.
 
 ## Alcance
 
-Las direcciones de preparación pertenecen al comprador autenticado. Se prueban métodos de pago del entorno de pruebas, sin transacciones bancarias reales.
+Mercado Pago se sustituye en el límite externo. No se hacen cobros ni llamadas al proveedor real. No hay selección de variante en AddCartItemRequest. La devolución financiera tardía y recuperación de un fallo interno después del pago no quedan certificadas.
 
-Los resultados demuestran los escenarios descritos, sin implicar cobertura total
-del caso de uso. Consulta la [guía compartida](pruebas-cu01-cu06.md) para el workflow
-y el reporte JaCoCo de la suite conjunta.
+Consulta las [brechas documentadas](brechas-cu01-cu06.md) antes de afirmar cumplimiento total.

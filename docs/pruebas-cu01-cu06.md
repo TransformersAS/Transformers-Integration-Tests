@@ -1,10 +1,11 @@
 # Pruebas de integración CU01 a CU06
 
-Las seis suites viven en `backend-tests/src/test/java/com/transformersas/marketplace/external/`.
+Las suites viven en `backend-tests/src/test/java/com/transformersas/marketplace/external/`.
 Se ejecutan contra Spring Boot con MockMvc, sesiones reales, CSRF, Flyway y MySQL
 Testcontainers. Heredan `AbstractIntegrationTest` del backend; no usan mocks de
-controllers, servicios ni repositorios. Los datos de preparación se insertan en
-la base efímera y las operaciones probadas se realizan por HTTP con MockMvc.
+controllers, servicios ni repositorios de negocio. Solo se simulan proveedores
+externos. Los datos se preparan en MySQL efímero y se ejercitan peticiones MockMvc
+y llamadas a servicios reales según el escenario.
 
 ## Documentación por caso de uso
 
@@ -25,7 +26,7 @@ El workflow `.github/workflows/cu02-cu03-integration.yml` conserva su nombre de
 archivo y ahora aparece como **CU01-CU06 Backend Integration**. Se activa con
 push a `feature/cu01-*` hasta `feature/cu06-*` o `test/cu01-cu06-*`, pull request
 o Actions → CU01-CU06 Backend Integration → Run workflow.
-Descarga `TransformersAS/Transformers-AS` desde `main`, copia las seis suites al
+Descarga `TransformersAS/Transformers-AS` desde `main`, copia las suites al
 directorio de pruebas de la aplicación y ejecuta Maven. La implementación y el
 helper compartido deben existir en ese `main`.
 
@@ -35,44 +36,50 @@ solo 100 % de cobertura ni cobertura completa de las reglas de cada caso.
 
 ## Ejecución local en Windows
 
-Requisitos: Java 21 y Docker Desktop iniciado con contenedores Linux.
-Desde este repositorio, suponiendo el backend en la carpeta vecina, prepara una
-copia temporal para no modificar el repositorio de la aplicación:
+Requisitos: Java 21 y Docker Desktop con contenedores Linux.
+El script prepara una copia temporal del backend y siempre copia los tests actuales.
+Desde la raíz del repositorio:
 
 ```powershell
-$env:JAVA_HOME = 'C:\Program Files\Eclipse Adoptium\jdk-21.0.9.10-hotspot' # Ajustar a tu JDK 21.
-$app = Join-Path $PWD 'target/cu01-cu06-validation/app'
-New-Item -ItemType Directory -Force $app | Out-Null
-Copy-Item ../Transformers-AS/backend/demo/src,../Transformers-AS/backend/demo/.mvn -Destination $app -Recurse -Force
-Copy-Item ../Transformers-AS/backend/demo/pom.xml,../Transformers-AS/backend/demo/mvnw.cmd -Destination $app
-$external = Join-Path $app 'src/test/java/com/transformersas/marketplace/external'
-New-Item -ItemType Directory -Force $external | Out-Null
-Copy-Item backend-tests/src/test/java/com/transformersas/marketplace/external/*.java $external
-Push-Location $app
-try {
-    .\mvnw.cmd test '-Dtest=Cu01CatalogIntegrationTests,Cu02RecommendationIntegrationTests,Cu03CheckoutIntegrationTests,Cu04ProductTrackingIntegrationTests,Cu05ProductReviewsIntegrationTests,Cu06DeliveryAddressIntegrationTests'
-    if ($LASTEXITCODE -eq 0) { .\mvnw.cmd jacoco:report }
-} finally {
-    Pop-Location
-}
+# Todas las suites, incluidos los contratos de aceptación.
+.\scripts\test-cu01-cu06.ps1
+
+# Solo un caso, o varios casos.
+.\scripts\test-cu01-cu06.ps1 -Case 5
+.\scripts\test-cu01-cu06.ps1 -Case 2,3
 ```
 
-Los resultados locales quedan en
-`target/cu01-cu06-validation/app/target/surefire-reports/` y el reporte de
-cobertura en `target/cu01-cu06-validation/app/target/site/jacoco/index.html`.
-No hace falta arrancar manualmente MySQL, backend ni frontend.
-El Maven de la raíz de este repositorio ejecuta otra suite y no descubre
-las clases de `backend-tests/`.
+Usa `-BackendPath` si la aplicación no está en `../Transformers-AS/backend/demo`,
+y `-JavaHome` si necesitas indicar explícitamente tu JDK 21. El backend original
+no se modifica. MySQL es temporal; no se usa una base de producción.
+
+Los resultados están en `target/cu01-cu06-validation/app/target/surefire-reports/`
+y JaCoCo en `target/cu01-cu06-validation/app/target/site/jacoco/index.html`.
+Los contratos que revelen incumplimientos fallan normalmente: no se omiten ni
+se convierten en aprobados. El código de salida de Maven y el script preservan ese fallo.
+
+El Maven de la raíz ejecuta otra suite y no descubre `backend-tests/`.
+El workflow usa `Cu01*IntegrationTests` hasta `Cu06*IntegrationTests`, de modo que
+incluye automáticamente las suites ampliadas. Genera JaCoCo también si fallan
+los contratos y conserva Surefire como evidencia. JaCoCo describe código ejecutado,
+no cumplimiento funcional.
+
+## Revisión contra el Excel
+
+- [Trazabilidad de los 52 requisitos](trazabilidad-cu01-cu06.md).
+- [Brechas y límites](brechas-cu01-cu06.md).
+- [Resultado de la validación ampliada](validacion-cu01-cu06.md).
 
 ## Límites
 
-Estas pruebas no recorren el navegador. CU01 valida el listado y detalle que
-expone el backend; búsqueda, filtros y paginación de la interfaz requieren sus
-pruebas específicas. CU04 no fuerza el disparo asíncrono de notificaciones ni
-comprueba proveedores externos. CU05 prepara una compra entregada directamente
-en MySQL para aislar las reglas de reseñas; la compra por HTTP se prueba en CU03.
+Estas pruebas no recorren el navegador. CU01 valida el listado y detalle del backend;
+los controles de búsqueda, filtros y comparación siguen fuera de esta suite.
+CU04 evalúa alertas reales con un gateway externo simulado. CU05 prepara una
+compra entregada en MySQL; CU03 cubre el flujo de compra. Las suites de IA y
+pasarela simulan únicamente el proveedor externo. El alcance está en la matriz;
+no se afirma 100 % de cumplimiento.
 
-## Validación local
+## Validación histórica de la suite inicial
 
 El 14 de noviembre de 2026 se ejecutaron las seis suites contra una copia sin
 cambios del backend en el commit `263bd0eaa5ddd585ebe3c398b1ec9f6fb004cf67`, con

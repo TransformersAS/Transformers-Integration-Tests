@@ -1,52 +1,41 @@
 # CU01 — Explorar el catálogo y descubrir productos
 
-## Archivo de pruebas
+## Archivos de pruebas
 
-[Cu01CatalogIntegrationTests.java](../backend-tests/src/test/java/com/transformersas/marketplace/external/Cu01CatalogIntegrationTests.java)
-contiene **3 pruebas**. Utiliza Spring Boot, MockMvc, sesiones reales, CSRF,
-Flyway y MySQL Testcontainers mediante el helper del backend. Las respuestas del
-backend no se sustituyen por mocks.
+- [Cu01CatalogIntegrationTests.java](../backend-tests/src/test/java/com/transformersas/marketplace/external/Cu01CatalogIntegrationTests.java) — paquete `com.transformersas.marketplace.external`.
 
-## Qué comprueba
+Las suites base usan MockMvc y MySQL Testcontainers. Las ampliadas combinan HTTP interno y servicios reales, con persistencia y transacciones reales. Los paquetes se conservan para acceder a los colaboradores de cada módulo.
 
-- Catálogo público y ficha con descripción, imagen, variante y tienda.
-- Productos retirados e inexistentes devuelven 404 y no aparecen en el catálogo.
-- Catálogo vacío devuelve una lista vacía correctamente.
+## Qué comprueban
 
-## Cómo ejecutar solamente CU01
+Catálogo público, ficha con imagen y variante, estados retirados/inexistentes y ausencia de modificaciones de inventario, carrito o pedidos.
 
-Requiere Java 21 y Docker Desktop con contenedores Linux. Primero prepara la
-copia temporal del backend con los pasos de la [guía compartida](pruebas-cu01-cu06.md#ejecución-local-en-windows).
-Desde la raíz de este repositorio, copia la versión actual de esta suite y ejecútala:
+Los requisitos y métodos exactos están en la [matriz de trazabilidad](trazabilidad-cu01-cu06.md#cu01).
+
+## Ejecución individual
+
+Desde PowerShell, en la raíz del repositorio, con Java 21 y Docker Desktop iniciado:
 
 ```powershell
-$env:JAVA_HOME = 'C:\Program Files\Eclipse Adoptium\jdk-21.0.9.10-hotspot' # Ajustar a tu JDK 21.
-Copy-Item backend-tests/src/test/java/com/transformersas/marketplace/external/Cu01CatalogIntegrationTests.java target/cu01-cu06-validation/app/src/test/java/com/transformersas/marketplace/external/
-Push-Location target/cu01-cu06-validation/app
-try {
-    .\mvnw.cmd test '-Dtest=Cu01CatalogIntegrationTests'
-} finally {
-    Pop-Location
-}
+.\scripts\test-cu01-cu06.ps1 -Case 1
 ```
 
-El resultado esperado es `Tests run: 3, Failures: 0, Errors: 0, Skipped: 0`
-y `BUILD SUCCESS`.
+El script actualiza la copia temporal de la aplicación y los tests, ejecuta **todas las suites de este CU** y genera JaCoCo. Para otro backend local o JDK:
+
+```powershell
+.\scripts\test-cu01-cu06.ps1 -Case 1 -BackendPath '../Transformers-AS/backend/demo' -JavaHome 'C:\Program Files\Eclipse Adoptium\jdk-21.0.9.10-hotspot'
+```
+
+No se necesita iniciar manualmente el frontend, backend ni MySQL. El código de salida es distinto de cero si falla una prueba; el reporte de cobertura no convierte un fallo en aprobación.
 
 ## Evidencia
 
-El reporte de esta suite queda en
-`target/cu01-cu06-validation/app/target/surefire-reports/com.transformersas.marketplace.external.Cu01CatalogIntegrationTests.txt`.
+Resultados en `target/cu01-cu06-validation/app/target/surefire-reports/`, un TXT y XML por suite. El nombre del reporte incluye el paquete de la clase, que puede ser distinto de `external`. Consulta el [resultado de la validación ampliada](validacion-cu01-cu06.md).
 
-En la ejecución conjunta del 14 de noviembre de 2026 esta suite aprobó sus
-**3 pruebas**, sin fallos, errores ni omitidas, contra el backend
-`263bd0eaa5ddd585ebe3c398b1ec9f6fb004cf67`, Java 21 y MySQL 8.4.11.
-Es evidencia local; no representa una ejecución de GitHub Actions.
+La ejecución anterior de 23 pruebas era la suite inicial; no demuestra por sí sola que la ampliación está aprobada.
 
 ## Alcance
 
-No cubre búsqueda, filtros ni paginación de la interfaz.
+Búsqueda, filtros, comparación y navegación son del frontend; no se consideran cubiertos por estos tests.
 
-Los resultados demuestran los escenarios descritos, sin implicar cobertura total
-del caso de uso. Consulta la [guía compartida](pruebas-cu01-cu06.md) para el workflow
-y el reporte JaCoCo de la suite conjunta.
+Consulta las [brechas documentadas](brechas-cu01-cu06.md) antes de afirmar cumplimiento total.

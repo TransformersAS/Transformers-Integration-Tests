@@ -8,6 +8,23 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /** CU-01: public catalog and persisted product details, without replacing backend responses. */
 class Cu01CatalogIntegrationTests extends AbstractIntegrationTest {
     @Test
+    void browsingDoesNotChangeInventoryOrCreatePurchaseData() throws Exception {
+        long id = seedProduct(1, "Solo consulta", 7, "12500");
+        for (int i = 0; i < 2; i++) {
+            mvc.perform(get("/api/products")).andExpect(status().isOk());
+            mvc.perform(get("/api/products/{id}", id)).andExpect(status().isOk())
+                    .andExpect(jsonPath("$.reviewCount").value(0))
+                    .andExpect(jsonPath("$.imageUrls").isEmpty())
+                    .andExpect(jsonPath("$.variants").isEmpty());
+        }
+        org.assertj.core.api.Assertions.assertThat(jdbc.queryForObject(
+                "SELECT stock FROM products WHERE id=?", Integer.class, id)).isEqualTo(7);
+        org.assertj.core.api.Assertions.assertThat(count("cart_items")).isZero();
+        org.assertj.core.api.Assertions.assertThat(count("orders")).isZero();
+        org.assertj.core.api.Assertions.assertThat(count("inventory_reservations")).isZero();
+    }
+
+    @Test
     void visitorCanBrowseAndReadStoredProductDetails() throws Exception {
         long id = seedProduct(1, "Lampara CU01", 8, "55000");
         jdbc.update("UPDATE products SET description='Para lectura' WHERE id=?", id);

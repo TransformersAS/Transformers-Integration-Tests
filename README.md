@@ -26,6 +26,9 @@ el sistema desplegado a traves de sus interfaces observables.
 Para las suites de **CU01 a CU06**, consultar
 [la guía de ejecución y alcance](docs/pruebas-cu01-cu06.md). Estas suites están
 en `backend-tests/` y tienen un workflow propio; no las ejecuta el Maven de la raíz.
+La [matriz del Excel](docs/trazabilidad-cu01-cu06.md) distingue los requisitos
+comprobados de las [brechas pendientes](docs/brechas-cu01-cu06.md). Los contratos
+de aceptación que detectan incumplimientos hacen fallar el workflow.
 
 - Java 21.
 - Docker con Compose v2 para levantar el backend local.
